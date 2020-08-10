@@ -41,26 +41,25 @@ using namespace std;
 static HWND		hWndServer		= NULL;
 static HHOOK	hookMouse		= NULL;
 
-static LRESULT CALLBACK hookProcMouse(UINT nCode, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK hookProcMouse(int nCode, WPARAM wParam, LPARAM lParam)
 {
-    if(nCode < 0)
-    {
-		::CallNextHookEx(hookMouse, nCode, wParam, lParam);
-        return 0;
-    }
-
-    switch (wParam)
-    {
+	if (nCode >= 0)
+	{
+		switch (wParam)
+		{
 		case WM_MOUSEMOVE:
 		case WM_NCMOUSEMOVE:
 			::PostMessage(hWndServer, UINT(wParam), 0, 0);
 			break;
+
 		case WM_LBUTTONUP:
 		case WM_NCLBUTTONUP:
 			::PostMessage(hWndServer, UINT(wParam), 0, 0);
 			break;
-        default: 
+
+		default:
 			break;
+		}
 	}
 
 	return ::CallNextHookEx(hookMouse, nCode, wParam, lParam);
@@ -87,13 +86,13 @@ DockingCont::DockingCont()
 	_bDrawOgLine		= TRUE;
 	_vTbData.clear();
 
-	_captionHeightDynamic = NppParameters::getInstance()->_dpiManager.scaleY(_captionHeightDynamic);
-	_captionGapDynamic = NppParameters::getInstance()->_dpiManager.scaleY(_captionGapDynamic);
-	_closeButtonPosLeftDynamic = NppParameters::getInstance()->_dpiManager.scaleX(_closeButtonPosLeftDynamic);
-	_closeButtonPosTopDynamic = NppParameters::getInstance()->_dpiManager.scaleY(_closeButtonPosTopDynamic);
+	_captionHeightDynamic = NppParameters::getInstance()._dpiManager.scaleY(_captionHeightDynamic);
+	_captionGapDynamic = NppParameters::getInstance()._dpiManager.scaleY(_captionGapDynamic);
+	_closeButtonPosLeftDynamic = NppParameters::getInstance()._dpiManager.scaleX(_closeButtonPosLeftDynamic);
+	_closeButtonPosTopDynamic = NppParameters::getInstance()._dpiManager.scaleY(_closeButtonPosTopDynamic);
 
-	_closeButtonWidth = NppParameters::getInstance()->_dpiManager.scaleX(12); // bitmap image is 12x12
-	_closeButtonHeight = NppParameters::getInstance()->_dpiManager.scaleY(12);
+	_closeButtonWidth = NppParameters::getInstance()._dpiManager.scaleX(12); // bitmap image is 12x12
+	_closeButtonHeight = NppParameters::getInstance()._dpiManager.scaleY(12);
 }
 
 DockingCont::~DockingCont()
@@ -212,16 +211,15 @@ tTbData* DockingCont::findToolbarByName(TCHAR* pszName)
 
 void DockingCont::setActiveTb(tTbData* pTbData)
 {
-	int iItem = SearchPosInTab(pTbData);
+	int iItem = searchPosInTab(pTbData);
 	setActiveTb(iItem);
 }
 
 void DockingCont::setActiveTb(int iItem)
 {
-	//if ((iItem != -1) && (iItem < ::SendMessage(_hContTab, TCM_GETITEMCOUNT, 0, 0)))
 	if (iItem < ::SendMessage(_hContTab, TCM_GETITEMCOUNT, 0, 0))
 	{
-		SelectTab(iItem);
+		selectTab(iItem);
 	}
 }
 
@@ -255,7 +253,7 @@ vector<tTbData*> DockingCont::getDataOfVisTb()
 
 	tcItem.mask	= TCIF_PARAM;
 
-	for(int iItem = 0; iItem < iItemCnt; ++iItem)
+	for (int iItem = 0; iItem < iItemCnt; ++iItem)
 	{
 		::SendMessage(_hContTab, TCM_GETITEM, iItem, reinterpret_cast<LPARAM>(&tcItem));
 		vTbData.push_back((tTbData*)tcItem.lParam);
@@ -270,7 +268,7 @@ bool DockingCont::isTbVis(tTbData* data)
 
 	tcItem.mask	= TCIF_PARAM;
 
-	for(int iItem = 0; iItem < iItemCnt; ++iItem)
+	for (int iItem = 0; iItem < iItemCnt; ++iItem)
 	{
 		::SendMessage(_hContTab, TCM_GETITEM, iItem, reinterpret_cast<LPARAM>(&tcItem));
 		if (!tcItem.lParam)
@@ -302,7 +300,7 @@ LRESULT DockingCont::runProcCaption(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 
 				// start hooking
 				hWndServer		= _hCaption;
-				hookMouse = ::SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC)hookProcMouse, _hInst, 0);
+				hookMouse = ::SetWindowsHookEx(WH_MOUSE_LL, hookProcMouse, _hInst, 0);
 
 				if (!hookMouse)
 				{
@@ -465,10 +463,13 @@ void DockingCont::drawCaptionItem(DRAWITEMSTRUCT *pDrawItemStruct)
 	// begin with paint
 	::SetBkMode(hDc, TRANSPARENT);
 
-	if (_isActive == TRUE) {
+	if (_isActive == TRUE)
+	{
 		bgbrush = ::CreateSolidBrush(::GetSysColor(COLOR_ACTIVECAPTION));
 		::SetTextColor(hDc, ::GetSysColor(COLOR_CAPTIONTEXT));
-	} else {
+	}
+	else
+	{
 		bgbrush = ::CreateSolidBrush(::GetSysColor(COLOR_BTNFACE));
 	}
 
@@ -568,7 +569,7 @@ void DockingCont::drawCaptionItem(DRAWITEMSTRUCT *pDrawItemStruct)
 	::DeleteObject(bgbrush);
 
 	// draw button
-	HDC			dcMem		= ::CreateCompatibleDC(NULL);
+	HDC dcMem = ::CreateCompatibleDC(NULL);
 
 	// select correct bitmap
 	if ((_isMouseOver == TRUE) && (_isMouseDown == TRUE))
@@ -658,7 +659,7 @@ LRESULT DockingCont::runProcTab(HWND hwnd, UINT Message, WPARAM wParam, LPARAM l
 			info.pt.y = HIWORD(lParam);
 			iItem = static_cast<int32_t>(::SendMessage(hwnd, TCM_HITTEST, 0, reinterpret_cast<LPARAM>(&info)));
 
-			SelectTab(iItem);
+			selectTab(iItem);
 			_beginDrag = FALSE;
 			return TRUE;
 		}
@@ -678,7 +679,7 @@ LRESULT DockingCont::runProcTab(HWND hwnd, UINT Message, WPARAM wParam, LPARAM l
 			info.pt.y = HIWORD(lParam);
 			iItem = static_cast<int32_t>(::SendMessage(hwnd, TCM_HITTEST, 0, reinterpret_cast<LPARAM>(&info)));
 
-			SelectTab(iItem);
+			selectTab(iItem);
 
 			// get data and hide toolbar
 			tcItem.mask		= TCIF_PARAM;
@@ -707,7 +708,7 @@ LRESULT DockingCont::runProcTab(HWND hwnd, UINT Message, WPARAM wParam, LPARAM l
 
 			if ((_beginDrag == TRUE) && (wParam == MK_LBUTTON))
 			{
-				SelectTab(iItem);
+				selectTab(iItem);
 
 				// send moving message to parent window
 				_dragFromTab = TRUE;
@@ -811,7 +812,7 @@ LRESULT DockingCont::runProcTab(HWND hwnd, UINT Message, WPARAM wParam, LPARAM l
 				info.pt.y = HIWORD(lParam);
 				iItem = static_cast<int32_t>(::SendMessage(hwnd, TCM_HITTEST, 0, reinterpret_cast<LPARAM>(&info)));
 
-				SelectTab(iItem);
+				selectTab(iItem);
 			}
 			break;
 		}
@@ -880,7 +881,7 @@ void DockingCont::drawTabItem(DRAWITEMSTRUCT *pDrawItemStruct)
 			
 			ImageList_GetImageInfo(hImageList, iPosImage, &info);
 
-			int iconDpiDynamicalY = NppParameters::getInstance()->_dpiManager.scaleY(7);
+			int iconDpiDynamicalY = NppParameters::getInstance()._dpiManager.scaleY(7);
 			ImageList_Draw(hImageList, iPosImage, hDc, rc.left + 3, iconDpiDynamicalY, ILD_NORMAL);
 
 			if (isSelected)
@@ -935,7 +936,7 @@ INT_PTR CALLBACK DockingCont::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 			_hDefaultTabProc = reinterpret_cast<WNDPROC>(::SetWindowLongPtr(_hContTab, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(wndTabProc)));
 
 			// set min tab width
-			int tabDpiDynamicalMinWidth = NppParameters::getInstance()->_dpiManager.scaleY(24);
+			int tabDpiDynamicalMinWidth = NppParameters::getInstance()._dpiManager.scaleY(24);
 			::SendMessage(_hContTab, TCM_SETMINTABWIDTH, 0, tabDpiDynamicalMinWidth);
 
 			break;
@@ -1025,7 +1026,7 @@ void DockingCont::onSize()
 	if (iItemCnt >= 1)
 	{
 		// resize to docked window
-		int tabDpiDynamicalHeight = NppParameters::getInstance()->_dpiManager.scaleY(24);
+		int tabDpiDynamicalHeight = NppParameters::getInstance()._dpiManager.scaleY(24);
 		if (_isFloating == false)
 		{
 			// draw caption
@@ -1079,13 +1080,10 @@ void DockingCont::onSize()
 		else
 		{
 			// update floating size
-			if (_isFloating == true)
+			for (size_t iTb = 0, len = _vTbData.size(); iTb < len; ++iTb)
 			{
-				for (size_t iTb = 0, len = _vTbData.size(); iTb < len; ++iTb)
-				{
-					getWindowRect(_vTbData[iTb]->rcFloat);
-				}
-			}			
+				getWindowRect(_vTbData[iTb]->rcFloat);
+			}
 
 			// draw caption
 			if (iItemCnt >= 2)
@@ -1111,10 +1109,10 @@ void DockingCont::onSize()
 		
 
 		// get active item data
-		size_t iItemCnt = static_cast<size_t>(::SendMessage(_hContTab, TCM_GETITEMCOUNT, 0, 0));
+		size_t iItemCnt2 = static_cast<size_t>(::SendMessage(_hContTab, TCM_GETITEMCOUNT, 0, 0));
 
 		// resize visible plugin windows
-		for (size_t iItem = 0; iItem < iItemCnt; ++iItem)
+		for (size_t iItem = 0; iItem < iItemCnt2; ++iItem)
 		{
 			tcItem.mask		= TCIF_PARAM;
 			::SendMessage(_hContTab, TCM_GETITEM, iItem, reinterpret_cast<LPARAM>(&tcItem));
@@ -1146,7 +1144,7 @@ void DockingCont::doClose()
 		TCITEM		tcItem		= {0};
 
 		// get item data
-		SelectTab(iItemOff);
+		selectTab(iItemOff);
 		tcItem.mask	= TCIF_PARAM;
 		::SendMessage(_hContTab, TCM_GETITEM, iItemOff, reinterpret_cast<LPARAM>(&tcItem));
 		if (!tcItem.lParam)
@@ -1186,7 +1184,8 @@ void DockingCont::showToolbar(tTbData* pTbData, BOOL state)
 
 int DockingCont::hideToolbar(tTbData *pTbData, BOOL hideClient)
 {
-	int iItem = SearchPosInTab(pTbData);
+	int iItem = searchPosInTab(pTbData);
+	BOOL hadFocus = ::IsChild (pTbData->hClient, ::GetFocus());
 
 	// delete item
 	if (TRUE == ::SendMessage(_hContTab, TCM_DELETEITEM, iItem, 0))
@@ -1195,10 +1194,6 @@ int DockingCont::hideToolbar(tTbData *pTbData, BOOL hideClient)
 
 		if (iItemCnt != 0)
 		{
-			TCITEM		tcItem = {0};
-
-			tcItem.mask	= TCIF_PARAM;
-
 			if (iItem == iItemCnt)
 			{
 				iItem--;
@@ -1206,7 +1201,7 @@ int DockingCont::hideToolbar(tTbData *pTbData, BOOL hideClient)
 
 			// activate new selected item and view plugin dialog
 			_prevItem = iItem;
-			SelectTab(iItem);
+			selectTab(iItem);
 
 			// hide tabs if only one element
 			if (iItemCnt == 1)
@@ -1224,6 +1219,9 @@ int DockingCont::hideToolbar(tTbData *pTbData, BOOL hideClient)
 			{
 				::SendMessage(_hParent, WM_SIZE, 0, 0);
 			}
+			// set focus to current edit window if the docking window had focus
+			if (hadFocus)
+				::PostMessage(::GetParent(_hParent), WM_ACTIVATE, WA_ACTIVE, 0);
 		}
 
 		// keep sure, that client is hide!!!
@@ -1256,7 +1254,7 @@ void DockingCont::viewToolbar(tTbData *pTbData)
 	}
 
 	// create new tab if it not exists
-	int iTabPos = SearchPosInTab(pTbData);
+	int iTabPos = searchPosInTab(pTbData);
 	tcItem.mask			= TCIF_PARAM;
 	tcItem.lParam = reinterpret_cast<LPARAM>(pTbData);
 
@@ -1264,13 +1262,13 @@ void DockingCont::viewToolbar(tTbData *pTbData)
 	{
 		// set only params and text even if icon available
 		::SendMessage(_hContTab, TCM_INSERTITEM, iItemCnt, reinterpret_cast<LPARAM>(&tcItem));
-		SelectTab(iItemCnt);
+		selectTab(iItemCnt);
 	}
 	// if exists select it and update data
 	else
 	{
 		::SendMessage(_hContTab, TCM_SETITEM, iTabPos, reinterpret_cast<LPARAM>(&tcItem));
-		SelectTab(iTabPos);
+		selectTab(iTabPos);
 	}
 
 	// show dialog and notify parent to update dialog view
@@ -1284,7 +1282,7 @@ void DockingCont::viewToolbar(tTbData *pTbData)
 	onSize();
 }
 
-int DockingCont::SearchPosInTab(tTbData* pTbData)
+int DockingCont::searchPosInTab(tTbData* pTbData)
 {
 	TCITEM tcItem = {0};
 	int iItemCnt = static_cast<int32_t>(::SendMessage(_hContTab, TCM_GETITEMCOUNT, 0, 0));
@@ -1303,7 +1301,7 @@ int DockingCont::SearchPosInTab(tTbData* pTbData)
 	return -1;
 }
 
-void DockingCont::SelectTab(int iTab)
+void DockingCont::selectTab(int iTab)
 {
 	if (iTab != -1)
 	{

@@ -1,5 +1,5 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
+// Copyright (C)2020 Don HO <don.h@free.fr>
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -26,8 +26,7 @@
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-#ifndef URLCTRL_INCLUDED
-#define URLCTRL_INCLUDED
+#pragma once
 
 #include "Window.h"
 #include "Common.h"
@@ -37,7 +36,7 @@ public:
     URLCtrl():_hfUnderlined(0),_hCursor(0), _msgDest(NULL), _cmdID(0), _oldproc(NULL), \
 		_linkColor(), _visitedColor(), _clicking(false), _URL(TEXT("")){};
 
-    void create(HWND itemHandle, TCHAR * link, COLORREF linkColor = RGB(0,0,255));
+    void create(HWND itemHandle, const TCHAR * link, COLORREF linkColor = RGB(0,0,255));
 	void create(HWND itemHandle, int cmd, HWND msgDest = NULL);
     void destroy();
 private:
@@ -61,4 +60,3 @@ protected :
     LRESULT runProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 };
 
-#endif //URLCTRL_INCLUDED

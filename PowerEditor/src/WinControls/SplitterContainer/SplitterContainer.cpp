@@ -1,5 +1,5 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
+// Copyright (C)2020 Don HO <don.h@free.fr>
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -118,12 +118,12 @@ void SplitterContainer::display(bool toShow) const
 }
 
 
-void SplitterContainer::redraw() const
+void SplitterContainer::redraw(bool forceUpdate) const
 {
 	assert(_pWin0 != nullptr);
 	assert(_pWin1 != nullptr);
-	_pWin0->redraw(true);
-	_pWin1->redraw(true);
+	_pWin0->redraw(forceUpdate);
+	_pWin1->redraw(forceUpdate);
 }
 
 

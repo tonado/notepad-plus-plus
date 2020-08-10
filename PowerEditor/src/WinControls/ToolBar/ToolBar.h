@@ -1,5 +1,5 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
+// Copyright (C)2020 Don HO <don.h@free.fr>
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -26,8 +26,7 @@
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-#ifndef TOOL_BAR_H
-#define TOOL_BAR_H
+#pragma once
 
 #include "Common.h"
 #include "Window.h"
@@ -56,7 +55,7 @@ struct iconLocator {
 	int iconIndex;
 	generic_string iconLocation;
 
-	iconLocator(int iList, int iIcon, const generic_string iconLoc) 
+	iconLocator(int iList, int iIcon, const generic_string& iconLoc)
 		: listIndex(iList), iconIndex(iIcon), iconLocation(iconLoc){};
 };
 
@@ -67,8 +66,8 @@ class TiXmlNode;
 class ToolBar : public Window
 {
 public :
-	ToolBar():Window() {};
-	virtual ~ToolBar(){};
+	ToolBar() = default;
+	virtual ~ToolBar() = default;
 
     void initTheme(TiXmlDocument *toolIconsDocRoot);
 	virtual bool init(HINSTANCE hInst, HWND hPere, toolBarStatusType type, 
@@ -121,10 +120,10 @@ private :
 	ToolBarIcons _toolBarIcons;
 	toolBarStatusType _state = TB_SMALL;
 	std::vector<tDynamicList> _vDynBtnReg;
-	size_t _nrButtons = 0;
-	size_t _nrDynButtons = 0;
-	size_t _nrTotalButtons = 0;
-	size_t _nrCurrentButtons = 0;
+	size_t _nbButtons = 0;
+	size_t _nbDynButtons = 0;
+	size_t _nbTotalButtons = 0;
+	size_t _nbCurrentButtons = 0;
 	ReBar * _pRebar = nullptr;
 	REBARBANDINFO _rbBand;
     std::vector<iconLocator> _customIconVect;
@@ -174,5 +173,3 @@ private:
 	void releaseID(int id);
 	bool isIDTaken(int id);
 };
-
-#endif // TOOL_BAR_H

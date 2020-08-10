@@ -30,6 +30,8 @@
 #define NPP_SORTERS_H
 
 #include <algorithm>
+#include <utility>
+#include <random>
 
 // Base interface for line sorting.
 class ISorter
@@ -48,7 +50,21 @@ protected:
 	{
 		if (isSortingSpecificColumns())
 		{
-			return input.substr(_fromColumn, 1 + _toColumn - _fromColumn);
+			// prevent an std::out_of_range exception
+			if (input.length() < _fromColumn)
+			{
+				return TEXT("");
+			}
+			else if (_fromColumn == _toColumn)
+			{
+				// get characters from the indicated column to the end of the line
+				return input.substr(_fromColumn);
+			}
+			else
+			{
+				// get characters between the indicated columns, inclusive
+				return input.substr(_fromColumn, _toColumn - _fromColumn);
+			}
 		}
 		else
 		{
@@ -114,6 +130,135 @@ public:
 	}
 };
 
+// Treat consecutive numerals as one number
+// Otherwise it is a lexicographic sort
+class NaturalSorter : public ISorter
+{
+public:
+	NaturalSorter(bool isDescending, size_t fromColumn, size_t toColumn) : ISorter(isDescending, fromColumn, toColumn) { };
+
+	std::vector<generic_string> sort(std::vector<generic_string> lines) override
+	{
+		// Note that both branches here are equivalent in the sense that they give always give the same answer.
+		// However, if we are *not* sorting specific columns, then we get a 40% speed improvement by not calling
+		// getSortKey() so many times.
+		if (isSortingSpecificColumns())
+		{
+			std::sort(lines.begin(), lines.end(), [this](generic_string aIn, generic_string bIn)
+			{
+				generic_string a = getSortKey(aIn);
+				generic_string b = getSortKey(bIn);
+
+				long long compareResult = 0;
+				size_t i = 0;
+				while (compareResult == 0)
+				{
+					if (i >= a.length() || i >= b.length())
+					{
+						compareResult = a.compare(min(i, a.length()), generic_string::npos, b, min(i, b.length()), generic_string::npos);
+						break;
+					}
+
+					bool aChunkIsNum = a[i] >= L'0' && a[i] <= L'9';
+					bool bChunkIsNum = b[i] >= L'0' && b[i] <= L'9';
+
+					// One is number and one is string
+					if (aChunkIsNum != bChunkIsNum)
+					{
+						compareResult = a[i] - b[i];
+						// No need to update i; compareResult != 0
+					}
+					// Both are numbers
+					else if (aChunkIsNum)
+					{
+						size_t delta = 0;
+
+						// stoll crashes if number exceeds the limit for unsigned long long
+						// Maximum value for a variable of type unsigned long long | 18446744073709551615
+						// So take the max length 18 to convert the number
+						const size_t maxLen = 18;
+						compareResult = std::stoll(a.substr(i, maxLen)) - std::stoll(b.substr(i, maxLen), &delta);
+						i += delta;
+					}
+					// Both are strings
+					else
+					{
+						size_t aChunkEnd = a.find_first_of(L"1234567890", i);
+						size_t bChunkEnd = b.find_first_of(L"1234567890", i);
+						compareResult = a.compare(i, aChunkEnd - i, b, i, bChunkEnd - i);
+						i = aChunkEnd;
+					}
+				}
+
+				if (isDescending())
+				{
+					return compareResult > 0;
+				}
+				else
+				{
+					return compareResult < 0;
+				}
+			});
+		}
+		else
+		{
+			std::sort(lines.begin(), lines.end(), [this](generic_string a, generic_string b)
+			{
+				long long compareResult = 0;
+				size_t i = 0;
+				while (compareResult == 0)
+				{
+					if (i >= a.length() || i >= b.length())
+					{
+						compareResult = a.compare(min(i,a.length()), generic_string::npos, b, min(i,b.length()), generic_string::npos);
+						break;
+					}
+
+					bool aChunkIsNum = a[i] >= L'0' && a[i] <= L'9';
+					bool bChunkIsNum = b[i] >= L'0' && b[i] <= L'9';
+
+					// One is number and one is string
+					if (aChunkIsNum != bChunkIsNum)
+					{
+						compareResult = a[i] - b[i];
+						// No need to update i; compareResult != 0
+					}
+					// Both are numbers
+					else if (aChunkIsNum)
+					{
+						size_t delta = 0;
+
+						// stoll crashes if number exceeds the limit for unsigned long long
+						// Maximum value for a variable of type unsigned long long | 18446744073709551615
+						// So take the max length 18 to convert the number
+						const size_t maxLen = 18;
+						compareResult = std::stoll(a.substr(i, maxLen)) - std::stoll(b.substr(i, maxLen), &delta);
+						i += delta;
+					}
+					// Both are strings
+					else
+					{
+						size_t aChunkEnd = a.find_first_of(L"1234567890", i);
+						size_t bChunkEnd = b.find_first_of(L"1234567890", i);
+						compareResult = a.compare(i, aChunkEnd-i, b, i, bChunkEnd-i);
+						i = aChunkEnd;
+					}
+				}
+
+				if (isDescending())
+				{
+					return compareResult > 0;
+				}
+				else
+				{
+					return compareResult < 0;
+				}
+			});
+		}
+		return lines;
+	}
+};
+
 // Convert each line to a number and then sort.
 // The conversion must be implemented in classes which inherit from this, see prepareStringForConversion and convertStringToNumber.
 template<typename T_Num>
@@ -154,7 +299,7 @@ public:
 			{
 				try
 				{
-					nonEmptyInputAsNumbers.push_back(make_pair(lineIndex, convertStringToNumber(preparedLine)));
+					nonEmptyInputAsNumbers.push_back(std::make_pair(lineIndex, convertStringToNumber(preparedLine)));
 				}
 				catch (...)
 				{
@@ -212,24 +357,6 @@ protected:
 	_locale_t _usLocale;
 };
 
-// Converts lines to long long before sorting.
-class IntegerSorter : public NumericSorter<long long>
-{
-public:
-	IntegerSorter(bool isDescending, size_t fromColumn, size_t toColumn) : NumericSorter<long long>(isDescending, fromColumn, toColumn) { };
-
-protected:
-	virtual generic_string prepareStringForConversion(const generic_string& input)
-	{
-		return stringTakeWhileAdmissable(getSortKey(input), TEXT(" \t\r\n0123456789-"));
-	}
-
-	long long convertStringToNumber(const generic_string& input) override
-	{
-		return std::stoll(input);
-	}
-};
-
 // Converts lines to double before sorting (assumes decimal comma).
 class DecimalCommaSorter : public NumericSorter<double>
 {
@@ -264,6 +391,21 @@ protected:
 	double convertStringToNumber(const generic_string& input) override
 	{
 		return stodLocale(input, _usLocale);
+	}
+};
+
+class RandomSorter : public ISorter
+{
+public:
+	unsigned seed;
+	RandomSorter(bool isDescending, size_t fromColumn, size_t toColumn) : ISorter(isDescending, fromColumn, toColumn)
+	{
+		seed = static_cast<unsigned>(time(NULL));
+	}
+	std::vector<generic_string> sort(std::vector<generic_string> lines) override
+	{
+		std::shuffle(lines.begin(), lines.end(), std::default_random_engine(seed));
+		return lines;
 	}
 };
 

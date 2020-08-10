@@ -1,5 +1,5 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
+// Copyright (C)2020 Don HO <don.h@free.fr>
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -26,14 +26,9 @@
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-#ifndef PROJECTPANEL_H
-#define  PROJECTPANEL_H
+#pragma once
 
-//#include <windows.h>
-#ifndef DOCKINGDLGINTERFACE_H
 #include "DockingDlgInterface.h"
-#endif //DOCKINGDLGINTERFACE_H
-
 #include "TreeView.h"
 #include "ProjectPanel_rc.h"
 
@@ -68,11 +63,12 @@ enum NodeType {
 };
 
 class TiXmlNode;
+class FileDialog;
 
 class ProjectPanel : public DockingDlgInterface {
 public:
 	ProjectPanel(): DockingDlgInterface(IDD_PROJECTPANEL) {};
-
+	~ProjectPanel();
 
 	void init(HINSTANCE hInst, HWND hPere) {
 		DockingDlgInterface::init(hInst, hPere);
@@ -87,6 +83,7 @@ public:
     };
 
 	void newWorkSpace();
+	bool saveWorkspaceRequest();
 	bool openWorkSpace(const TCHAR *projectFileName);
 	bool saveWorkSpace();
 	bool saveWorkSpaceAs(bool saveCopyAs);
@@ -110,7 +107,7 @@ public:
 
 protected:
 	TreeView _treeView;
-	HIMAGELIST _hImaLst;
+	HIMAGELIST _hImaLst = nullptr;
 	HWND _hToolbarMenu = nullptr;
 	HMENU _hWorkSpaceMenu = nullptr;
 	HMENU _hProjectMenu = nullptr;
@@ -139,15 +136,19 @@ protected:
 	bool buildTreeFrom(TiXmlNode *projectRoot, HTREEITEM hParentItem);
 	void notified(LPNMHDR notification);
 	void showContextMenu(int x, int y);
+	void showContextMenuFromMenuKey(HTREEITEM selectedItem, int x, int y);
+	HMENU getMenuHandler(HTREEITEM selectedItem);
 	generic_string getAbsoluteFilePath(const TCHAR * relativePath);
 	void openSelectFile();
+	void setFileExtFilter(FileDialog & fDlg);
+	std::vector<generic_string*> fullPathStrs;
 };
 
 class FileRelocalizerDlg : public StaticDialog
 {
 public :
-	FileRelocalizerDlg() : StaticDialog() {};
-	void init(HINSTANCE hInst, HWND parent){
+	FileRelocalizerDlg() = default;
+	void init(HINSTANCE hInst, HWND parent) {
 		Window::init(hInst, parent);
 	};
 
@@ -167,5 +168,3 @@ private :
 	generic_string _fullFilePath;
 
 };
-
-#endif // PROJECTPANEL_H

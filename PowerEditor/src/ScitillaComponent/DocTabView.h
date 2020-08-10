@@ -1,5 +1,5 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
+// Copyright (C)2020 Don HO <don.h@free.fr>
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -25,17 +25,10 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+#pragma once
 
-#ifndef DOCTABVIEW_H
-#define DOCTABVIEW_H
-
-#ifndef TAB_BAR_H
 #include "TabBar.h"
-#endif //TAB_BAR_H
-
-#ifndef BUFFER_H
 #include "Buffer.h"
-#endif //BUFFER_H
 
 const int SAVED_IMG_INDEX = 0;
 const int UNSAVED_IMG_INDEX = 1;
@@ -87,9 +80,11 @@ public :
 
 	virtual void reSizeTo(RECT & rc);
 
+	const ScintillaEditView* getScintillaEditView() const {
+		return _pView;
+	};
+
 private :
 	ScintillaEditView *_pView;
 	static bool _hideTabBarStatus;
 };
-
-#endif //DOCTABVIEW_H

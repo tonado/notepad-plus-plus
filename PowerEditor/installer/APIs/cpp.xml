@@ -1123,8 +1123,8 @@
 		<KeyWord name="operator!" />
 		<KeyWord name="operator!=" />
 		<KeyWord name="operator" />
-		<KeyWord name="operator&" />
-		<KeyWord name="operator&=" />
+		<KeyWord name="operator&amp;" />
+		<KeyWord name="operator&amp;=" />
 		<KeyWord name="operator()" />
 		<KeyWord name="operator*" />
 		<KeyWord name="operator*=" />
@@ -1133,19 +1133,19 @@
 		<KeyWord name="operator+=" />
 		<KeyWord name="operator-" />
 		<KeyWord name="operator-=" />
-		<KeyWord name="operator->" />
+		<KeyWord name="operator-&gt;" />
 		<KeyWord name="operator/" />
 		<KeyWord name="operator/=" />
-		<KeyWord name="operator<" />
-		<KeyWord name="operator<<" />
-		<KeyWord name="operator<<=" />
-		<KeyWord name="operator<=" />
+		<KeyWord name="operator&lt;" />
+		<KeyWord name="operator&lt;&lt;" />
+		<KeyWord name="operator&lt;&lt;=" />
+		<KeyWord name="operator&lt;=" />
 		<KeyWord name="operator=" />
 		<KeyWord name="operator==" />
-		<KeyWord name="operator>" />
-		<KeyWord name="operator>=" />
-		<KeyWord name="operator>>" />
-		<KeyWord name="operator>>=" />
+		<KeyWord name="operator&gt;" />
+		<KeyWord name="operator&gt;=" />
+		<KeyWord name="operator&gt;&gt;" />
+		<KeyWord name="operator&gt;&gt;=" />
 		<KeyWord name="operator[]" />
 		<KeyWord name="operator^" />
 		<KeyWord name="operator^=" />
@@ -1624,8 +1624,8 @@
 			</Overload>
 		</KeyWord>
 		<KeyWord name="strncmp" func="yes">
-			<Overload retVal="char *" >
-				<Param name="char *s1" />
+			<Overload retVal="int" >
+				<Param name="const char *s1" />
 				<Param name="const char *s2" />
 				<Param name="size_t n" />
 			</Overload>

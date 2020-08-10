@@ -1,5 +1,5 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
+// Copyright (C)2020 Don HO <don.h@free.fr>
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -26,12 +26,9 @@
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-#ifndef PRINTER_H
-#define PRINTER_H
+#pragma once
 
-#ifndef SCINTILLA_EDIT_VIEW_H
 #include "ScintillaEditView.h"
-#endif //SCINTILLA_EDIT_VIEW_H
 
 
 struct NPP_RangeToFormat {
@@ -39,14 +36,15 @@ struct NPP_RangeToFormat {
 	HDC hdcTarget;
 	RECT rc;
 	RECT rcPage;
-	CharacterRange chrg;
+	Sci_CharacterRange chrg;
 };
 
 class Printer
 {
 public :
-	Printer(){};
-	void init(HINSTANCE hInst, HWND hwnd, ScintillaEditView *pSEView, bool showDialog, int startPos, int endPos);
+	Printer() = default;
+
+	void init(HINSTANCE hInst, HWND hwnd, ScintillaEditView *pSEView, bool showDialog, int startPos, int endPos, bool isRTL = false);
 	size_t doPrint() {
 		if (!::PrintDlg(&_pdlg))
 				return 0;
@@ -61,6 +59,6 @@ private :
 	size_t _startPos = 0;
 	size_t _endPos = 0;
 	size_t _nbPageTotal =0;
+	bool _isRTL = false;
 };
 
-#endif //PRINTER_H

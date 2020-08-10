@@ -42,10 +42,10 @@ BOOL DockingManager::_isRegistered = FALSE;
 static	HWND			hWndServer	= NULL;
 //Next hook in line
 static	HHOOK			gWinCallHook = NULL;
-LRESULT CALLBACK FocusWndProc(int nCode, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK focusWndProc(int nCode, WPARAM wParam, LPARAM lParam);
 
 // Callback function that handles messages (to test focus)
-LRESULT CALLBACK FocusWndProc(int nCode, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK focusWndProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	if (nCode == HC_ACTION && hWndServer)
 	{
@@ -164,7 +164,7 @@ void DockingManager::init(HINSTANCE hInst, HWND hWnd, Window ** ppWin)
 		hWndServer = _hSelf;
 	CoInitialize(NULL);
 	if (!gWinCallHook)	//only set if not already done
-		gWinCallHook = ::SetWindowsHookEx(WH_CALLWNDPROC, FocusWndProc, hInst, GetCurrentThreadId());
+		gWinCallHook = ::SetWindowsHookEx(WH_CALLWNDPROC, focusWndProc, hInst, GetCurrentThreadId());
 
 	if (!gWinCallHook)
 	{
@@ -247,7 +247,8 @@ LRESULT DockingManager::runProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 		case WM_DESTROY:
 		{
 			// unregister window event hooking BEFORE EVERYTHING ELSE
-			if (hWndServer == hwnd) {
+			if (hWndServer == hwnd)
+			{
 				UnhookWindowsHookEx(gWinCallHook);
 				gWinCallHook = NULL;
 				hWndServer = NULL;
@@ -360,8 +361,6 @@ LRESULT DockingManager::runProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 		{
 			tTbData	TbData	= *(reinterpret_cast<DockingCont*>(lParam))->getDataOfActiveTb();
 			LRESULT res = SendNotify(TbData.hClient, DMN_CLOSE);	// Be sure the active item is OK with closing
-			if (res == 0)	// Item will be closing?
-				::PostMessage(_hParent, WM_ACTIVATE, WA_ACTIVE, 0);	// Tell editor to take back focus
 			return res;
 		}
 		case DMM_FLOATALL:
@@ -570,7 +569,7 @@ void DockingManager::createDockableDlg(tTbData data, int iCont, bool isVisible)
 		// create image list if not exist
 		if (_hImageList == NULL)
 		{
-			int iconDpiDynamicalSize = NppParameters::getInstance()->_dpiManager.scaleY(14);
+			int iconDpiDynamicalSize = NppParameters::getInstance()._dpiManager.scaleY(14);
 			_hImageList = ::ImageList_Create(iconDpiDynamicalSize,iconDpiDynamicalSize,ILC_COLOR8, 0, 0);
 		}
 

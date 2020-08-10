@@ -1,5 +1,5 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
+// Copyright (C)2020 Don HO <don.h@free.fr>
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -26,15 +26,14 @@
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-#ifndef SHORTCUTMAPPER_RC_H
-#define SHORTCUTMAPPER_RC_H
+#pragma once
 
 #define	IDD_SHORTCUTMAPPER_DLG      2600
 #define	IDD_BABYGRID_ID1      (IDD_SHORTCUTMAPPER_DLG + 1)
 #define	IDM_BABYGRID_MODIFY   (IDD_SHORTCUTMAPPER_DLG + 2)
 #define	IDM_BABYGRID_DELETE   (IDD_SHORTCUTMAPPER_DLG + 3)
 #define	IDC_BABYGRID_TABBAR   (IDD_SHORTCUTMAPPER_DLG + 4)
-#define	IDC_BABYGRID_INFO	  (IDD_SHORTCUTMAPPER_DLG + 5)
+#define	IDC_BABYGRID_INFO     (IDD_SHORTCUTMAPPER_DLG + 5)
 #define	IDM_BABYGRID_CLEAR    (IDD_SHORTCUTMAPPER_DLG + 6)
-
-#endif// SHORTCUTMAPPER_RC_H
+#define	IDC_BABYGRID_STATIC   (IDD_SHORTCUTMAPPER_DLG + 7)
+#define	IDC_BABYGRID_FILTER   (IDD_SHORTCUTMAPPER_DLG + 8)
