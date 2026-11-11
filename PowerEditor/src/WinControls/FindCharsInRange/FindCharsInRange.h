@@ -1,76 +1,68 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-#ifndef FINDCHARSINRANGE_DLG_H
-#define FINDCHARSINRANGE_DLG_H
+#pragma once
 
-#ifndef FINDCHARSINRANGE_RC_H
-#include "findCharsInRange_rc.h"
-#endif //FINDCHARSINRANGE_RC_H
+#include <windows.h>
 
-#ifndef SCINTILLA_EDIT_VIEW_H
+#include <stdexcept>
+
 #include "ScintillaEditView.h"
-#endif //SCINTILLA_EDIT_VIEW_H
+#include "StaticDialog.h"
+#include "Window.h"
+#include "dpiManagerV2.h"
+#include "findCharsInRange_rc.h"
 
 class FindCharsInRangeDlg : public StaticDialog
 {
 public :
-	FindCharsInRangeDlg() : StaticDialog() {};
+	FindCharsInRangeDlg() = default;
 
 	void init(HINSTANCE hInst, HWND hPere, ScintillaEditView **ppEditView) {
 		Window::init(hInst, hPere);
 		if (!ppEditView)
 			throw std::runtime_error("FindCharsInRangeDlg::init : ppEditView is null.");
 		_ppEditView = ppEditView;
-	};
-
-	virtual void create(int dialogID, bool isRTL = false) {
-		StaticDialog::create(dialogID, isRTL);
-	};
+	}
 
 	void doDialog(bool isRTL = false) {
 		if (!isCreated())
+		{
+			const auto dpiContext = DPIManagerV2::setThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 			create(IDD_FINDCHARACTERS, isRTL);
+			DPIManagerV2::setThreadDpiAwarenessContext(dpiContext);
+		}
 		display();
-	};
+	}
 
-    virtual void display(bool toShow = true) const {
-        Window::display(toShow);
-    };
+	void display(bool toShow = true) const override {
+		Window::display(toShow);
+		::SendMessageW(_hSelf, DM_REPOSITION, 0, 0);
+	}
 
 protected :
-	virtual INT_PTR CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam);
+	intptr_t CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 
 private :
-    ScintillaEditView **_ppEditView = nullptr;
-	bool findCharInRange(unsigned char beginRange, unsigned char endRange, int startPos, bool direction, bool wrap);
+	ScintillaEditView **_ppEditView = nullptr;
+
+	using Window::init;
+
+	bool findCharInRange(unsigned char beginRange, unsigned char endRange, intptr_t startPos, bool direction, bool wrap);
 	bool getRangeFromUI(unsigned char & startRange, unsigned char & endRange);
 	void getDirectionFromUI(bool & whichDirection, bool & isWrap);
 };
-
-#endif //FINDCHARSINRANGE_DLG_H

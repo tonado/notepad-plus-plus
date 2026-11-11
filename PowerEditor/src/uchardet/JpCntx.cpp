@@ -186,7 +186,7 @@ float  JapaneseContextAnalysis::GetConfidence(void)
 {
   //This is just one way to calculate confidence. It works well for me.
   if (mTotalRel > mDataThreshold)
-    return ((float)(mTotalRel - mRelSample[0]))/mTotalRel;
+    return static_cast<float>(mTotalRel - mRelSample[0]) / static_cast<float>(mTotalRel);
   else 
     return (float)DONT_KNOW;
 }
@@ -195,8 +195,8 @@ float  JapaneseContextAnalysis::GetConfidence(void)
 PRInt32 SJISContextAnalysis::GetOrder(const char* str, PRUint32 *charLen)
 {
   //find out current char's byte length
-  if ((unsigned char)*str >= (unsigned char)0x81 && (unsigned char)*str <= (unsigned char)0x9f || 
-      (unsigned char)*str >= (unsigned char)0xe0 && (unsigned char)*str <= (unsigned char)0xfc )
+  if (((unsigned char)*str >= (unsigned char)0x81 && (unsigned char)*str <= (unsigned char)0x9f) ||
+      ((unsigned char)*str >= (unsigned char)0xe0 && (unsigned char)*str <= (unsigned char)0xfc))
       *charLen = 2;
   else 
       *charLen = 1;
@@ -213,8 +213,8 @@ PRInt32 EUCJPContextAnalysis::GetOrder(const char* str, PRUint32 *charLen)
 {
   //find out current char's byte length
   if ((unsigned char)*str == (unsigned char)0x8e ||
-      (unsigned char)*str >= (unsigned char)0xa1 && 
-      (unsigned char)*str <= (unsigned char)0xfe)
+      ((unsigned char)*str >= (unsigned char)0xa1 && 
+      (unsigned char)*str <= (unsigned char)0xfe))
       *charLen = 2;
   else if ((unsigned char)*str == (unsigned char)0x8f)
     *charLen = 3;

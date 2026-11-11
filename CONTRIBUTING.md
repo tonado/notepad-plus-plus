@@ -1,293 +1,473 @@
 # Contributing
 
+***Ask not what Notepad++ can do for you - ask what you can do for Notepad++***
 
 ## Reporting Issues
 
-Bug reports are appreciated. Following a few guidelines listed below will help speed up the process of getting them fixed. 
+Bug reports are appreciated. Following a few guidelines listed below will help speed up the process of getting them fixed.
 
 1. Search the issue tracker to see if it has already been reported.
 2. Disable your plugins to see if one of them is the problem. You can do this by renaming your `plugins` folder to something else.
-3. Only report an issue with a plugin if it is one of the standard plugins included in the Notepad++ installation. Any other plugin issue should be reported to its respective issue tracker. The standard plugins include (for v6.8.3):
-    * NppFTP
+3. Only report an issue with a plugin if it is one of the standard plugins included in the Notepad++ installation. Any other plugin issue should be reported to its respective issue tracker (see e.g. [plugin_list_x86.md](https://github.com/notepad-plus-plus/nppPluginList/blob/master/doc/plugin_list_x86.md) or [plugin_list_x64.md](https://github.com/notepad-plus-plus/nppPluginList/blob/master/doc/plugin_list_x64.md) to find the homepage with further information on that for a plugins). The standard plugins include (for v7.9.5):
     * NppExport
-    * Plugin Manager
     * Converter
     * mimeTools
-4. Include additional information such as:
-    * A detailed explanation
-    * Operating System version
-    * Notepad++ version
-    * List of installed plugins (if it is related to a plugin)
-    * Screen shots (if applicable)
-    * ...and any other relevant information
+4. Fill the complete information: a template will be shown when you create an issue. Please fill the complete information in the template. To fill the field **Debug Information** you can get it from your Notepad++ via menu `?>Debug Info...`. Please take your time to fill these information. If you don't bother to complete the information we need to help you, we won't bother to solve your problem either.
+    
 
 ## Pull Requests
 
-Your pull requests are welcome; however, they may not be accepted for various reasons. If you want to make some GUI enhancement like renaming some graphic items or fixing typos, please create the issue instead of the pull requests. All Pull Requests, except for translations and user documentation, need to be attached to a issue on GitHub. For Pull Requests regarding enhancements and questions, the issue must first be approved by one of project's administrators before being merged into the project. An approved issue will have the label `Accepted`. For issues that have not been accepted, you may request to be assigned to that issue.
+*The first rule of Notepad++ is: you do not ask for permission to contribute.*<br/>
+*The second rule of Notepad++ is: you DO NOT ask for permission to contribute.*
 
-Opening a issue beforehand allows the administrators and the community to discuss bugs and enhancements before work begins, preventing wasted effort.
+Just do your contribution if you have something to offer, and your pull requests are welcome.
 
+However, they may be rejected for various reasons:
+- All Pull Requests, except for translations and user documentation, need to be attached to a issue or comment on GitHub -- whether they are implementing feature requests, feature enhancements, or bug fixes.  Any PR that is not attached to an Issue is likely to be rejected.
+- If you want to make some GUI enhancement like renaming some graphic items or fixing typos, please create the issue instead of the pull requests.  Do not submit a PR for these kinds of requests: let an administrator review the Issue and implement the typo fix or item rename. PRs for fixing typos or renaming graphic items are likely to be rejected.
+- A project administrator will review every Pull Request.  If the PR meets all the requirements, follows the guidelines, follows the coding style, and the administrator feels it's appropriate to add to the codebase, the PR may be approved and merged (approval can be explicit through the `Accepted` tag on the Issue and/or PR before merging, or implicit by merging it without other tagging first).  The administrator or other project volunteers may request improvements to a PR.  The administrator may choose to reject a PR if the administrator does not believe it meets requirements, follows guidelines or coding style, or otherwise feels it is not appropriate to add to the code base.
 
+Opening an issue beforehand allows the administrators and the community to discuss bugs and enhancements before work begins, preventing wasted effort.
 
 ### Guidelines for pull requests
 
-1. Respect Notepad++ coding style.
-2. Make single commit per PR.
-3. Make your modification compact - don't reformat source code in your request. It makes code review more difficult.
-4. PR of reformatting (changing of ws/TAB, line endings or coding style) of source code won't be accepted. Use issue trackers for your request instead.
+1. Respect existing Notepad++ coding style. Observe the code near your intended change, and attempt to preserve the style of that code with the changes you make.
+2. Create a new branch for each PR. **Make sure your branch name wasn't used before** - you can add date (for example `patch3_20200528`) to ensure its uniqueness.
+3. Single feature or bug-fix per PR.
+4. Create a PR with a single commit to make the review process easier.
+5. For the PR of translation, don't guess or use the next version number. Use the current version number instead.
+6. Make your modification compact - don't reformat source code in your request. It makes code review more difficult.
+7. PR of reformatting (changing of ws/TAB, line endings or coding style) of source code won't be accepted. Use issue trackers for your request instead.
+8. Typo fixing and code refactoring won't be accepted - please create issues with title started with `TYPO` to request the changing.
+9. The PR for the enhancement of Function List parser should also include unit test. Please refer [here](https://npp-user-manual.org/docs/function-list/#contribute-your-new-or-enhanced-parser-rule-to-the-notepad-codebase) for more information. 
+10. Address the review change requests by pushing new commits to the same PR. Avoid amending a commit and then force pushing it. All the PR commits are squashed before merging to the main branch.
+11. When creating new PR, try to base it on latest master.
+12. Normally you don't need to merge `upstream/master` (using git or via github sync), if your PR is based on older `upstream/master`. If you need to base it on latest `master` (e.g. to check and fix merge conflict), use commands `git fetch upstream` to get latest `master` and then `git rebase upstream/master` to rebase it onto this latest `upstream/master`.
+13. Finally, please test your pull requests, at least once.
 
 In short: The easier the code review is, the better the chance your pull request will get accepted.
 
-
-
 ### Coding style
+
 ![stay clean](https://notepad-plus-plus.org/assets/images/good-bad-practice.jpg)
-
-
 
 #### GENERAL
 
-1. ##### Do not use Java-like braces.
+1. Do not use Java-like braces
 
-  * ###### Good:
+    * Good:
+
     ```cpp
-    if ()
+    void MyClass::method1()
     {
-        // Do something
+        if (aCondition)
+        {
+            // Do something
+        }
     }
     ```
 
-  * ###### Bad:
+    * Bad:
+
     ```cpp
-    if () {
-        // Do something
+    void MyClass::method1() {
+        if (aCondition) {
+            // Do something
+        }
     }
     ```
 
-1. ##### Use tabs instead of white-spaces (we usually set our editors to 4 white-spaces for 1 tab, but the choice is up to you).
+    However, the method definition could be defined in a header file (.h), if there's one line code only. In this case, Java-like braces should be used.
 
+    * Good:
+  
+    ```cpp
+    class MyClass
+    {
+    public:
+        void method1();
+        int method2() {
+            return _x; // only one line code can be placed in .h as method definition
+        }
 
-1. ##### Always leave one space before and after binary and ternary operators.
+    private:
+        int _x;
+    }
+    ```
 
-  * ###### Good:
+    For try bloc, Java-like braces should be used as well, in .cpp or .h files.
+
+    * Good:
+  
+    ```cpp
+    try {
+        // instructions
+    }
+    catch (...)
+    {
+        // instructions
+    }
+    ```
+
+2. Use tabs instead of white-spaces (we usually set our editors to 4 white-spaces for 1 tab, but the choice is up to you)
+
+3. Always leave one space before and after binary and ternary operators
+
+    * Good:
+
     ```cpp
     if (a == 10 && b == 42)
     ```
 
-  * ###### Bad:
+    * Bad:
+
     ```cpp
     if (a==10&&b==42)
     ```
 
-1. ##### Only leave one space after semi-colons in "for" statements.
+4. Only leave one space after semi-colons in "for" statements
 
-  * ###### Good:
+    * Good:
+
     ```cpp
     for (int i = 0; i != 10; ++i)
     ```
 
-  * ###### Bad:
+    * Bad:
+
     ```cpp
     for(int i=0;i<10;++i)
     ```
 
-1. <h5>Keywords are not function calls;<br>
-Function names are not separated from the first parenthesis.</h5>
+5. Function names are not separated from the first parenthesis
 
-  * ###### Good:
+    * Good:
+
     ```cpp
     foo();
     myObject.foo(24);
     ```
 
-  * ###### Bad:
+    * Bad:
+
     ```cpp
     foo ();
     ```
 
-1. ##### Keywords are separated from the first parenthesis by one space.
+6. Keywords are separated from the first parenthesis by one space
 
-  * ###### Good:
+    * Good:
+
     ```cpp
     if (true)
     while (true)
     ```
 
-  * ###### Bad:
+    * Bad:
+
     ```cpp
     if(myCondition)
     ```
 
-1. ##### Use the following indenting for "switch" statements:
+7. Switch
 
-  ```cpp
-  switch (test)
-  {
-      case 1:
-      {
-          // Do something
-          break;
-      }
-      default:
-          // Do something else
-  } // No semi-colon here
-  ```
+    * Use the following indenting for "switch" statements:
 
-1. ##### Avoid magic numbers.
-
-  * ###### Good:
     ```cpp
-    if (foo < I_CAN_PUSH_ON_THE_RED_BUTTON)
-        startThermoNuclearWar();
+    switch (test)
+    {
+        case 1:
+        {
+            // Do something
+            break;
+        }
+        default:
+            // Do something else
+    } // No semi-colon here
     ```
 
-  * ###### Bad:
+    * If possible use `default` statement, and prefer using it as last case.
+    * When using switch with enum or known range, try to cover all values if not using `default`.
+
+    ```cpp
+    enum class Test {val1, val2, val3}
+
+    switch (Test)
+    {
+        case Test::val1:
+        {
+            // Do something
+            break;
+        }
+
+        //case Test::val2:
+        //case Test::val3:
+        default: 
+            // Do something else
+    } // No semi-colon here
+    ```
+
+    When using `default` adding uncovered values as comments can help to convey intention.
+
+    * Use `[[fallthrough]]` if fall through is intended.
+
+    ```cpp
+    switch (test)
+    {
+        case 1:
+        {
+            // Do something
+        }
+        // I want fall through // adding comment can help to convey intention
+        [[fallthrough]];
+
+        case 2:
+        {
+            // Do something
+            break;
+        }
+
+        default:
+            // Do something else
+    } // No semi-colon here
+    ```
+
+8. Avoid magic numbers
+
+    * Good:
+
+    ```cpp
+    if (foo == I_CAN_PUSH_ON_THE_RED_BUTTON)
+        startTheNuclearWar();
+    ```
+
+    * Bad:
+
     ```cpp
     while (lifeTheUniverseAndEverything != 42)
         lifeTheUniverseAndEverything = buildMorePowerfulComputerForTheAnswer();
     ```
 
-1. ##### Prefer enums for integer constants.
+9. Prefer enums for integer constants
 
-1. ##### Use initialization with curly braces.
+10. Use initialization with curly braces
 
-  * ###### Good:
+    * Good:
+
     ```cpp
     MyClass instance{10.4};
     ```
 
-  * ###### Bad:
+    * Bad:
+
     ```cpp
     MyClass instance(10.4);
     ```
 
-1. ##### Always use `empty()` for testing if a string is empty or not.
+11. Always use `empty()` for testing if a string is empty or not
 
-  * ###### Good:
+    * Good:
+
     ```cpp
-    if (not string.empty())
+    if (!string.empty())
     ...
     ```
 
-  * ###### Bad:
+    * Bad:
+
     ```cpp
     if (string != "")
     ...
     ```
 
+12. Always use `C++ conversion` instead of `C-Style cast`
 
-1. ##### Always use `C++ conversion` instead of `C-Style cast`. Generally, all the conversion among types should be avoided. If you have no choice, use C++ conversion.
+    * Generally, all the conversion among types should be avoided. If you have no choice, use C++ conversion.
 
-  * ###### Good:
+    * Good:
+
     ```cpp
     char aChar = static_cast<char>(_pEditView->execute(SCI_GETCHARAT, j));
     ```
 
-  * ###### Bad:
+    * Bad:
+
     ```cpp
     char aChar = (char)_pEditView->execute(SCI_GETCHARAT, j);
     ```
 
+13. Use `!` instead of `not`, `&&` instead of `and`, `||` instead of `or`
+
+    * Good:
+
+    ```cpp
+    if (!::PathFileExists(dir2Search))
+    ```
+
+    * Bad:
+
+    ```cpp
+    if (not ::PathFileExists(dir2Search))
+    ```
+
+14. Always initialize local and global variables
+
+    * For primitive types and enum prefer initialization with `=`.
+    * For other prefer `{}`-initializer syntax.
+    * For "numerical" variables using literal suffix can help to convey intention.
+
+    ```cpp
+    constexpr float g_globalVariable = 0.0F;
+
+    void test()
+    {
+      constexpr UINT strLen = 1024U;
+      wchar_t myString[strLen]{};
+    }
+    ```
 
 #### NAMING CONVENTIONS
 
-1. ##### Classes (camel case)
+1. Classes uses Pascal Case
 
-  * ###### Good:
+    * Good:
+
     ```cpp
     class IAmAClass
     {};
     ```
 
-  * ###### Bad:
+    * Bad:
+  
     ```cpp
-    class iAmClass
+    class iAmAClass
     {};
-    class I_am_class
+    class I_am_a_class
     {};
     ```
 
-1. <h5>methods (camel case + begins with a lower case)<br>
-method parameters (camel case + begins with a lower case)</h5>
+2. Methods & method parameters
 
-  ```cpp
-  void myMethod(uint myVeryLongParameter);
-  ```
+    * Use camel Case
 
-1. <h5>member variables<br>
-Any member variable name of class/struct should be preceded by an underscore.</h5>
+    ```cpp
+    void myMethod(uint myVeryLongParameter);
+    ```
 
-  ```cpp
-  public:
-      int _publicAttribute;
-  private:
-      int _pPrivateAttribute;
-      float _pAccount;
-  ```
+3. Member variables
 
-1. ##### Always prefer a variable name that describes what the variable is used for.
+    * Any member variable name of class/struct should be preceded by an underscore.
 
-  * ###### Good:
+    ```cpp
+    public:
+        int _publicAttribute;
+    private:
+        int _pPrivateAttribute;
+        float _pAccount;
+    ```
+
+4. Always prefer a variable name that describes what the variable is used for
+
+    * Good:
+
     ```cpp
     if (hours < 24 && minutes < 60 && seconds < 60)
     ```
 
-  * ###### Bad:
+   * Bad:
+
     ```cpp
     if (a < 24 && b < 60 && c < 60)
     ```
 
-
-
 #### COMMENTS
 
-1. ##### Use C++ comment line style than C comment style.
+1. Use C++ comment line style rather than C comment style
 
-  * ###### Good:
-    ```
+   * Good:
+
+    ```cpp
     // Two lines comment
     // Use still C++ comment line style
     ```
 
-  * ###### Bad:
-    ```
+   * Bad:
+
+    ```cpp
     /*
     Please don't piss me off with that
     */
     ```
 
-
-
 #### BEST PRACTICES
 
-1. ##### Use C++11/14 whenever it is possible
+1. Use C++11/14/17/20 whenever it is possible.
 
-1. ##### Use C++11 member initialization feature whenever it is possible
+2. Use C++11 member initialization feature whenever it is possible.
 
-  ```cpp
-  class Foo
-  {
-      int value = 0;
-  };
-  ```
+    ```cpp
+    class Foo
+    {
+        int value = 0;
+    };
+    ```
 
-1. ##### Prefer this form:
-  ```cpp
-  ++i
-  ```
+3. Incrementing
+    * Prefer Pre-increment
 
-  **to:**
-  ```cpp
-  i++
-  ```
-  (It does not change anything for built-in types but it would bring consistency)
+    ```cpp
+    ++i
+    ```
 
-1. ##### Avoid using pointers. Prefer references. You might need the variable to be assigned a NULL value: in this case the NULL value has semantics and must be checked. Wherever possible, use a SmartPtr instead of old-school pointers.
+    * Over Post-increment
 
-1. ##### Avoid using new if you can use automatic variable. However, avoid `shared_ptr` as much as possible. Prefer `unique_ptr` instead.
+    ```cpp
+    i++
+    ```
 
-1. ##### Don't place any "using namespace" directives in headers.
+   (It does not change anything for built-in types but it would bring consistency)
 
-1. ##### Compile time is without incidence. Increasing compile time to reduce execution time is encouraged.
+4. Avoid using pointers. References are preferred instead. You might need the variable to be assigned a `NULL` value: in this case the `NULL` value has semantics and must be checked. Wherever possible, use a SmartPtr instead of old-school pointers.
 
-1. ##### Code legibility and length is less important than easy and fast end-user experience.
+5. Avoid using new if you can use automatic variable. However, avoid `shared_ptr` as much as possible. Prefer `unique_ptr` instead.
+
+6. Don't place any "using namespace" directives in headers.
+
+7. Compile time is without incidence. Increasing compile time to reduce execution time is encouraged.
+
+8. Code legibility and length is less important than easy and fast end-user experience.
+
+9. Prefer `constexpr` over `const` if value can be evaluated at compile time.
+
+10. Check if there are helper functions in headers or lambda functions to reuse them instead of writing new code.
+
+    * Example
+
+    ```cpp
+    // in StaticDialog.h
+    isCheckedOrNot();
+    setChecked();
+
+    // in Parameters.cpp
+    parseYesNoBoolAttribute();
+    ```
+
+11. Check if there are already defined global variables, and reuse them instead of defining new ones.
+
+12. Avoid "Yoda conditions".
+
+    * Good:
+
+    ```cpp
+    if (iAmYourFather == true)
+    ...
+    ```
+
+    * Bad:
+
+    ```cpp
+    if (true == iAmYourFather)
+    ...
+    ```
+
+13. Check [C++ Core Guidelines](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md) for additional guidelines.

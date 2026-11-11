@@ -1,114 +1,120 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid
-// misunderstandings, we consider an application to constitute a
-// "derivative work" for the purpose of this license if it does any of the
-// following:
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "Notepad_plus.h"
 
-
-
-const TCHAR COMMAND_ARG_HELP[] = TEXT("Usage :\r\
-\r\
-notepad++ [--help] [-multiInst] [-noPlugin] [-lLanguage] [-LlangCode] [-nLineNumber] [-cColumnNumber] [-pPosition] [-xLeftPos] [-yTopPos] [-nosession] [-notabbar] [-ro] [-systemtray] [-loadingTime] [-alwaysOnTop] [-openSession] [-r] [-qnEsterEggName | -qtText | -qfCntentFileName] [filePath]\r\
-\r\
-    --help : This help message\r\
-    -multiInst : Launch another Notepad++ instance\r\
-    -noPlugin : Launch Notepad++ without loading any plugin\r\
-    -l : Open filePath by applying indicated programming language\r\
-    -L : Apply indicated localization, langCode is browser language code\r\
-    -n : Scroll to indicated line on filePath\r\
-    -c : Scroll to indicated column on filePath\r\
-    -p : Scroll to indicated position on filePath\r\
-    -x : Move Notepad++ to indicated left side position on the screen\r\
-    -y : Move Notepad++ to indicated top position on the screen\r\
-    -nosession : Launch Notepad++ without previous session\r\
-    -notabbar : Launch Notepad++ without tabbar\r\
-    -ro : Make the filePath read only\r\
-    -systemtray : Launch Notepad++ directly in system tray\r\
-    -loadingTime : Display Notepad++ loading time\r\
-    -alwaysOnTop : Make Notepad++ always on top\r\
-    -openSession : Open a session. filePath must be a session file\r\
-    -r : Open files recursively. This argument will be ignored\r\
-         if filePath contain no wildcard character\r\
-    -qn : Launch ghost typing to display easter egg via its name\r\
-    -qt : Launch ghost typing to display a text via the given text\r\
-    -qf : Launch ghost typing to display a file content via the file path\r\
-    filePath : file or folder name to open (absolute or relative path name)\r\
-");
-
-
-
+constexpr int splitterSize = 8;
 
 
 class Notepad_plus_Window : public Window
 {
 public:
-	void init(HINSTANCE, HWND, const TCHAR *cmdLine, CmdLineParams *cmdLineParams);
+	void init(HINSTANCE, HWND, const wchar_t *cmdLine, CmdLineParams *cmdLineParams);
 
 	bool isDlgsMsg(MSG *msg) const;
 
-	HACCEL getAccTable() const
-	{
+	HACCEL getAccTable() const {
 		return _notepad_plus_plus_core.getAccTable();
 	}
 
-	bool emergency(generic_string emergencySavedDir)
-	{
+	bool emergency(const std::wstring& emergencySavedDir) {
 		return _notepad_plus_plus_core.emergency(emergencySavedDir);
 	}
 
-	bool isPrelaunch() const
-	{
+	bool isPrelaunch() const {
 		return _isPrelaunch;
 	}
 
-	void setIsPrelaunch(bool val)
-	{
+	void setIsPrelaunch(bool val) {
 		_isPrelaunch = val;
 	}
 
-	virtual void destroy()
-	{
+	std::wstring getPluginListVerStr() const {
+		return _notepad_plus_plus_core.getPluginListVerStr();
+	}
+
+	void destroy() override {
+		if (_hIconAbsent)
+			::DestroyIcon(_hIconAbsent);
 		::DestroyWindow(_hSelf);
 	}
 
-	static const TCHAR * getClassName()
-	{
+	static const wchar_t * getClassName() {
 		return _className;
 	}
 
-	static HWND gNppHWND;	//static handle to Notepad++ window, NULL if non-existant
+	HICON getAbsentIcoHandle() {
+		return _hIconAbsent;
+	}
 
+	static HWND gNppHWND;	//static handle to Notepad++ window, NULL if non-existent
+
+	void setStartupBgColor(COLORREF BgColor);
+
+	static void loadTrayIcon(HINSTANCE hinst, HICON* icon) {
+		DPIManagerV2::loadIcon(hinst, MAKEINTRESOURCE(IDI_M30ICON), ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON), icon);
+	}
+
+	bool addClipboardListener() {
+		if (!_isClipboardListener)
+		{
+			_isClipboardListener = ::AddClipboardFormatListener(_hSelf);
+#ifndef NDEBUG
+			if (!_isClipboardListener)
+			{
+				std::wstring msg = L"AddClipboardFormatListener failed!\n\nErrorCode: ";
+				msg += std::to_wstring(::GetLastError());
+				::MessageBoxW(_hSelf, msg.c_str(), L"Notepad_plus_Window::addClipboardListener", MB_OK | MB_APPLMODAL | MB_ICONWARNING);
+			}
+#endif
+		}
+		return _isClipboardListener;
+	}
+
+	void removeClipboardListener() {
+		if (_isClipboardListener)
+		{
+			_isClipboardListener = false;
+#ifdef NDEBUG
+			::RemoveClipboardFormatListener(_hSelf);
+#else
+			BOOL bRemoved = ::RemoveClipboardFormatListener(_hSelf);
+			if (!bRemoved)
+			{
+				std::wstring msg = L"RemoveClipboardFormatListener failed!\n\nErrorCode: ";
+				msg += std::to_wstring(::GetLastError());
+				::MessageBoxW(_hSelf, msg.c_str(), L"Notepad_plus_Window::removeClipboardListener", MB_OK | MB_APPLMODAL | MB_ICONWARNING);
+			}
+#endif
+		}
+	}
 
 private:
 	Notepad_plus _notepad_plus_plus_core;
 	static LRESULT CALLBACK Notepad_plus_Proc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 	LRESULT runProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 
-	static const TCHAR _className[32];
+	static constexpr wchar_t _className[32] = L"Notepad++";
 	bool _isPrelaunch = false;
 	bool _disablePluginsManager = false;
-	std::string _userQuote; // keep the availability of this string for thread using
+
+	QuoteParams _quoteParams; // keep the availability of quote parameters for thread using
+	std::wstring _userQuote; // keep the availability of this string for thread using
+
+	HICON _hIconAbsent = nullptr;
+
+	bool _isClipboardListener = false;
 };

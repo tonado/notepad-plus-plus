@@ -1,67 +1,83 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #include "TaskListDlg.h"
-#include "Parameters.h"
-#include "resource.h"
 
-LRESULT CALLBACK hookProc(UINT nCode, WPARAM wParam, LPARAM lParam)
+#include <windows.h>
+
+#include "Notepad_plus_msgs.h"
+#include "NppConstants.h"
+#include "NppDarkMode.h"
+#include "Parameters.h"
+#include "StaticDialog.h"
+#include "TaskListDlg_rc.h"
+#include "colors.h"
+
+int TaskListDlg::_instanceCount = 0;
+
+static HWND hWndServer = nullptr;
+static HHOOK hook = nullptr;
+static winVer windowsVersion = WV_UNKNOWN;
+
+static LRESULT CALLBACK hookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
-	if ((nCode >= 0) && (wParam == WM_RBUTTONUP))
-    {
+	// only when list control has focus
+	const bool shouldPostMsg = (nCode >= 0)
+		&& (::GetFocus() == hWndServer
+			|| ::IsChild(hWndServer, ::GetFocus()) == TRUE);
+	if (shouldPostMsg && (wParam == WM_RBUTTONUP))
+	{
 		::PostMessage(hWndServer, WM_RBUTTONUP, 0, 0);
-    }        
-	
+	}
+	else if (shouldPostMsg && (wParam == WM_MOUSEWHEEL) && windowsVersion >= WV_WIN10)
+	{
+		auto* pMD = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
+		RECT rCtrl{};
+		::GetWindowRect(hWndServer, &rCtrl);
+
+		RECT rcNpp{};
+		::GetWindowRect(::GetParent(hWndServer), &rcNpp);
+		// To avoid duplicate messages, only send this message to the list control if it comes from outside the control window,
+		// and it is still inside Notepad++ window. To avoid affecting both list control and other "app".
+		// If the message occurs while the mouse is inside the control, the control will have receive the mouse wheel message itself.
+		if (::PtInRect(&rCtrl, pMD->pt) == FALSE && ::PtInRect(&rcNpp, pMD->pt) == TRUE)
+		{
+			::PostMessage(hWndServer, WM_MOUSEWHEEL, WPARAM{ pMD->mouseData }, MAKELPARAM(pMD->pt.x, pMD->pt.y));
+		}
+	}
+
 	return ::CallNextHookEx(hook, nCode, wParam, lParam);
 }
 
- int TaskListDlg::doDialog(bool isRTL) 
- {
-	if (isRTL)
-	{
-		DLGTEMPLATE *pMyDlgTemplate = NULL;
-		HGLOBAL hMyDlgTemplate = makeRTLResource(IDD_VALUE_DLG, &pMyDlgTemplate);
-		int result = static_cast<int32_t>(::DialogBoxIndirectParam(_hInst, pMyDlgTemplate, _hParent, dlgProc, reinterpret_cast<LPARAM>(this)));
-		::GlobalFree(hMyDlgTemplate);
-		return result;
-	}
-	return static_cast<int32_t>(::DialogBoxParam(_hInst, MAKEINTRESOURCE(IDD_TASKLIST_DLG), _hParent, dlgProc, reinterpret_cast<LPARAM>(this)));
+int TaskListDlg::doDialog(bool isRTL)
+{
+	return static_cast<int>(StaticDialog::myCreateDialogBoxIndirectParam(IDD_TASKLIST_DLG, isRTL));
 }
 
-INT_PTR CALLBACK TaskListDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lParam)
+intptr_t CALLBACK TaskListDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	switch (Message)
 	{
 		case WM_INITDIALOG :
 		{
+			NppDarkMode::autoSubclassAndThemeChildControls(_hSelf);
+
 			::SendMessage(_hParent, WM_GETTASKLISTINFO, reinterpret_cast<WPARAM>(&_taskListInfo), 0);
-			int nbTotal = static_cast<int32_t>(_taskListInfo._tlfsLst.size());
+			const int nbTotal = static_cast<int>(_taskListInfo._tlfsLst.size());
 
 			int i2set = _taskListInfo._currentIndex + (_initDir == dirDown?1:-1);
 			
@@ -72,7 +88,7 @@ INT_PTR CALLBACK TaskListDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 				i2set = 0;
 
 			_taskList.init(_hInst, _hSelf, _hImalist, nbTotal, i2set);
-			_taskList.setFont(TEXT("Verdana"), NppParameters::getInstance()->_dpiManager.scaleY(14));
+			_taskList.setFont(NppParameters::getInstance().getDlgFontSize() + 2);
 			_rc = _taskList.adjustSize();
 
 			reSizeTo(_rc);
@@ -80,22 +96,49 @@ INT_PTR CALLBACK TaskListDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 
 			_taskList.display(true);
 			hWndServer = _hSelf;
+			windowsVersion = NppParameters::getInstance().getWinVersion();
 
-#ifndef WH_MOUSE_LL
-#define WH_MOUSE_LL 14
-#endif
-			_hHooker = ::SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC)hookProc, _hInst, 0);
+			_hHooker = ::SetWindowsHookEx(WH_MOUSE_LL, hookProc, _hInst, 0);
 			hook = _hHooker;
 			return FALSE;
+		}
+
+		case WM_CTLCOLORDLG:
+		case WM_CTLCOLORSTATIC:
+		{
+			return NppDarkMode::onCtlColorDlg(reinterpret_cast<HDC>(wParam));
+		}
+
+		case WM_PRINTCLIENT:
+		{
+			if (NppDarkMode::isEnabled())
+			{
+				return TRUE;
+			}
+			break;
 		}
 
 		case WM_DESTROY :
 		{
 			_taskList.destroy();
 			::UnhookWindowsHookEx(_hHooker);
+			_instanceCount--;
 			return TRUE;
 		}
 
+		case WM_ACTIVATE:
+		{
+			// Dismiss it if window became active again while not pressing ctrl key or mouse right button.
+			// But allow mouse clicking to change document.
+			if (LOWORD(wParam) == WA_ACTIVE
+				&& ::GetKeyState(VK_CONTROL) >= 0
+				&& ::GetKeyState(VK_RBUTTON) >= 0)
+			{
+				::EndDialog(_hSelf, -1);
+				return TRUE;
+			}
+			break;
+		}
 
 		case WM_RBUTTONUP:
 		{
@@ -103,24 +146,29 @@ INT_PTR CALLBACK TaskListDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 			return TRUE;
 		}
 		
+		case WM_MOUSEWHEEL:
+		{
+			::SendMessage(_taskList.getHSelf(), WM_MOUSEWHEEL, wParam, lParam);
+			return TRUE;
+		}
 
 		case WM_DRAWITEM :
 		{
-			drawItem((DRAWITEMSTRUCT *)lParam);
+			drawItem(reinterpret_cast<DRAWITEMSTRUCT*>(lParam));
 			return TRUE;
 		}
 
 		case WM_NOTIFY:
 		{
-			switch (((LPNMHDR)lParam)->code)
+			switch (reinterpret_cast<LPNMHDR>(lParam)->code)
 			{
 				case LVN_GETDISPINFO:
 				{
-					LV_ITEM &lvItem = reinterpret_cast<LV_DISPINFO*>(reinterpret_cast<LV_DISPINFO FAR *>(lParam))->item;
+					auto& lvItem = reinterpret_cast<NMLVDISPINFOW*>(lParam)->item;
 
 					TaskLstFnStatus & fileNameStatus = _taskListInfo._tlfsLst[lvItem.iItem];
 
-					lvItem.pszText = (TCHAR *)fileNameStatus._fn.c_str();
+					lvItem.pszText = fileNameStatus._fn.data();
 					lvItem.iImage = fileNameStatus._status;
 
 					return TRUE;
@@ -139,7 +187,7 @@ INT_PTR CALLBACK TaskListDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 			break;
 		}
 
-		case WM_COMMAND : 
+		case WM_COMMAND:
 		{
 			switch (wParam)
 			{
@@ -149,6 +197,13 @@ INT_PTR CALLBACK TaskListDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 					int view2set = _taskListInfo._tlfsLst[listIndex]._iView;
 					int index2Switch = _taskListInfo._tlfsLst[listIndex]._docIndex;
 					::SendMessage(_hParent, NPPM_ACTIVATEDOC, view2set, index2Switch);
+					::EndDialog(_hSelf, -1);
+					return TRUE;
+				}
+
+				// fallback in case window is not dismissed automatically, pressing Esc key should dismiss it
+				case IDCANCEL:
+				{
 					::EndDialog(_hSelf, -1);
 					return TRUE;
 				}
@@ -170,18 +225,18 @@ void TaskListDlg::drawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
 	RECT rect = lpDrawItemStruct->rcItem;
 	HDC hDC = lpDrawItemStruct->hDC;
 	int nItem = lpDrawItemStruct->itemID;
-	const TCHAR *label = _taskListInfo._tlfsLst[nItem]._fn.c_str();
+	const wchar_t *label = _taskListInfo._tlfsLst[nItem]._fn.c_str();
 	int iImage = _taskListInfo._tlfsLst[nItem]._status;
 
-	const int aSpaceWidth = ListView_GetStringWidth(_taskList.getHSelf(), TEXT(" "));
+	const int aSpaceWidth = ListView_GetStringWidth(_taskList.getHSelf(), L" ");
 
-	COLORREF textColor = darkGrey;
+	COLORREF textColor = NppDarkMode::isEnabled() ? NppDarkMode::getDarkerTextColor() : darkGrey;
 	int imgStyle = ILD_SELECTED;
 
 	if (lpDrawItemStruct->itemState & ODS_SELECTED)
 	{
 		imgStyle = ILD_TRANSPARENT;
-		textColor = black;
+		textColor = NppDarkMode::isEnabled() ? NppDarkMode::getTextColor() : black;
 		::SelectObject(hDC, _taskList.GetFontSelected());
 	}
 	
@@ -190,7 +245,7 @@ void TaskListDlg::drawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
 	//
 	HIMAGELIST hImgLst = _taskList.getImgLst();
 
-	IMAGEINFO info;
+	IMAGEINFO info{};
 	::ImageList_GetImageInfo(hImgLst, iImage, &info);
 
 	RECT & imageRect = info.rcImage;
@@ -205,5 +260,5 @@ void TaskListDlg::drawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
 	// DRAW TEXT
 	//
 	::SetTextColor(hDC, textColor);
-	::DrawText(hDC, label, lstrlen(label), &rect, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
+	::DrawText(hDC, label, -1, &rect, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
 }

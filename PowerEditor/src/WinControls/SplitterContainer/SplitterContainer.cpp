@@ -1,40 +1,42 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid
-// misunderstandings, we consider an application to constitute a
-// "derivative work" for the purpose of this license if it does any of the
-// following:
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-#include <iostream>
-#include <stdexcept>
-#include <windows.h>
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
 #include "SplitterContainer.h"
+
+#include <windows.h>
+
 #include <cassert>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+
+#include "Parameters.h"
+#include "Splitter.h"
+#include "Window.h"
+#include "localization.h"
+#include "resource.h"
 
 
+static constexpr auto SPC_CLASS_NAME = L"splitterContainer";
+
+static constexpr int ROTATION_LEFT = 2000;
+static constexpr int ROTATION_RIGHT = 2001;
 
 bool SplitterContainer::_isRegistered = false;
-
-
 
 void SplitterContainer::create(Window *pWin0, Window *pWin1, int splitterSize, SplitterMode mode, int ratio, bool isVertical)
 {
@@ -51,9 +53,10 @@ void SplitterContainer::create(Window *pWin0, Window *pWin1, int splitterSize, S
 		_dwSplitterStyle |= SV_FIXED;
 		_dwSplitterStyle &= ~SV_RESIZEWTHPERCNT;
 	}
+
 	if (!_isRegistered)
 	{
-		WNDCLASS splitterContainerClass;
+		WNDCLASS splitterContainerClass{};
 
 		splitterContainerClass.style = CS_DBLCLKS;
 		splitterContainerClass.lpfnWndProc = staticWinProc;
@@ -76,7 +79,7 @@ void SplitterContainer::create(Window *pWin0, Window *pWin1, int splitterSize, S
 	}
 
 	_hSelf = ::CreateWindowEx(
-		0, SPC_CLASS_NAME, TEXT("a koi sert?"),
+		0, SPC_CLASS_NAME, L"a koi sert?",
 		WS_CHILD | WS_CLIPCHILDREN,
 		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 		_hParent, NULL, _hInst, this);
@@ -118,12 +121,12 @@ void SplitterContainer::display(bool toShow) const
 }
 
 
-void SplitterContainer::redraw() const
+void SplitterContainer::redraw(bool forceUpdate) const
 {
 	assert(_pWin0 != nullptr);
 	assert(_pWin1 != nullptr);
-	_pWin0->redraw(true);
-	_pWin1->redraw(true);
+	_pWin0->redraw(forceUpdate);
+	_pWin1->redraw(forceUpdate);
 }
 
 
@@ -142,6 +145,7 @@ void SplitterContainer::rotateTo(DIRECTION direction)
 		_dwSplitterStyle |= SV_VERTICAL;
 		doSwitchWindow = (direction == DIRECTION::RIGHT);
 	}
+
 	if (doSwitchWindow)
 	{
 		Window *tmp = _pWin0;
@@ -154,12 +158,11 @@ void SplitterContainer::rotateTo(DIRECTION direction)
 
 LRESULT CALLBACK SplitterContainer::staticWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	SplitterContainer *pSplitterContainer = NULL;
 	switch (message)
 	{
 		case WM_NCCREATE:
 		{
-			pSplitterContainer = reinterpret_cast<SplitterContainer *>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams);
+			auto* pSplitterContainer = static_cast<SplitterContainer*>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams);
 			pSplitterContainer->_hSelf = hwnd;
 			::SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pSplitterContainer));
 			return TRUE;
@@ -167,7 +170,7 @@ LRESULT CALLBACK SplitterContainer::staticWinProc(HWND hwnd, UINT message, WPARA
 
 		default:
 		{
-			pSplitterContainer = (SplitterContainer *)::GetWindowLongPtr(hwnd, GWLP_USERDATA);
+			auto* pSplitterContainer = reinterpret_cast<SplitterContainer*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
 			if (!pSplitterContainer)
 				return ::DefWindowProc(hwnd, message, wParam, lParam);
 			return pSplitterContainer->runProc(message, wParam, lParam);
@@ -183,32 +186,33 @@ LRESULT SplitterContainer::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 		case WM_CREATE:
 		{
 			_splitter.init(_hInst, _hSelf, _splitterSize, _ratio, _dwSplitterStyle);
-			return TRUE;
+			return 0;
 		}
 
 		case WM_COMMAND:
 		{
 			switch (LOWORD(wParam))
 			{
-				case ROTATION_A_GAUCHE:
+				case ROTATION_LEFT:
 				{
 					rotateTo(DIRECTION::LEFT);
-					break;
+					return 0;
 				}
-				case ROTATION_A_DROITE:
+				case ROTATION_RIGHT:
 				{
 					rotateTo(DIRECTION::RIGHT);
-					break;
+					return 0;
 				}
 			}
-			return TRUE;
+			break;
 		}
 
 		case WM_RESIZE_CONTAINER:
 		{
-			RECT rc0, rc1;
+			RECT rc0{};
 			getClientRect(rc0);
 
+			RECT rc1{};
 			rc1.top = rc0.top += _y;
 			rc1.bottom = rc0.bottom;
 			rc1.left = rc0.left += _x;
@@ -243,16 +247,23 @@ LRESULT SplitterContainer::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 
 		case WM_DOPOPUPMENU:
 		{
-			if ((_splitterMode != SplitterMode::LEFT_FIX) && (_splitterMode != SplitterMode::RIGHT_FIX) )
+			if ((_splitterMode != SplitterMode::LEFT_FIX) && (_splitterMode != SplitterMode::RIGHT_FIX))
 			{
-				POINT p;
+				POINT p{};
 				::GetCursorPos(&p);
 
 				if (!_hPopupMenu)
 				{
 					_hPopupMenu = ::CreatePopupMenu();
-					::InsertMenu(_hPopupMenu, 1, MF_BYPOSITION, ROTATION_A_GAUCHE, TEXT("Rotate to left"));
-					::InsertMenu(_hPopupMenu, 0, MF_BYPOSITION, ROTATION_A_DROITE, TEXT("Rotate to right"));
+
+					NativeLangSpeaker* nativeLangSpeaker = NppParameters::getInstance().getNativeLangSpeaker();
+					const std::wstring textLeft =
+						nativeLangSpeaker->getLocalizedStrFromID("splitter-rotate-left", L"Rotate to left");
+					const std::wstring textRight =
+						nativeLangSpeaker->getLocalizedStrFromID("splitter-rotate-right", L"Rotate to right");
+
+					::InsertMenu(_hPopupMenu, 1, MF_BYPOSITION, ROTATION_LEFT, textLeft.c_str());
+					::InsertMenu(_hPopupMenu, 0, MF_BYPOSITION, ROTATION_RIGHT, textRight.c_str());
 				}
 
 				::TrackPopupMenu(_hPopupMenu, TPM_LEFTALIGN, p.x, p.y, 0, _hSelf, NULL);
@@ -305,22 +316,23 @@ LRESULT SplitterContainer::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 
 		case WM_LBUTTONDBLCLK:
 		{
-			POINT pt;
+			POINT pt{};
 			::GetCursorPos(&pt);
 			::ScreenToClient(_splitter.getHSelf(), &pt);
 
 			HWND parent = ::GetParent(getHSelf());
 
-			Window* targetWindow = (this->isVertical())
+			const Window* targetWindow = (isVertical())
 				? (pt.x < 0 ? _pWin0 : _pWin1)
 				: (pt.y < 0 ? _pWin0 : _pWin1);
 
 			::SendMessage(parent, NPPM_INTERNAL_SWITCHVIEWFROMHWND, 0, reinterpret_cast<LPARAM>(targetWindow->getHSelf()));
-			::SendMessage(parent, WM_COMMAND, IDM_FILE_NEW, 0);
-			return TRUE;
+			::SendMessage(parent, WM_LBUTTONDBLCLK, wParam, lParam);
+			return 0;
 		}
 
 		default:
-			return ::DefWindowProc(_hSelf, message, wParam, lParam);
+			break;
 	}
+	return ::DefWindowProc(_hSelf, message, wParam, lParam);
 }

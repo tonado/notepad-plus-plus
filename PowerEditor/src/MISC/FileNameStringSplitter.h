@@ -1,53 +1,37 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid
-// misunderstandings, we consider an application to constitute a
-// "derivative work" for the purpose of this license if it does any of the
-// following:
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#pragma once
 
-#ifndef FILENAME_STRING_SPLITTER_H
-#define FILENAME_STRING_SPLITTER_H
-
-typedef std::vector<generic_string> stringVector;
-
-
+typedef std::vector<std::wstring> stringVector;
 
 class FileNameStringSplitter
 {
 public:
-	FileNameStringSplitter(const TCHAR *fileNameStr)
+	FileNameStringSplitter(const wchar_t *fileNameStr)
 	{
-		//if (!fileNameStr) return;
-		TCHAR *pStr = NULL;
+		wchar_t *pStr = NULL;
 		bool isInsideQuotes = false;
 		const int filePathLength = MAX_PATH;
 
-		TCHAR str[filePathLength];
+		wchar_t str[filePathLength];
 		int i = 0;
         bool fini = false;
 
-		for (pStr = (TCHAR *)fileNameStr ; !fini ; )
+		for (pStr = (wchar_t *)fileNameStr ; !fini ; )
 		{
 			if (i >= filePathLength)
 				break;
@@ -60,7 +44,7 @@ public:
 					{
 						str[i] = '\0';
                         if (str[0])
-							_fileNames.push_back(generic_string(str));
+							_fileNames.push_back(std::wstring(str));
 						i = 0;
 					}
 					isInsideQuotes = !isInsideQuotes;
@@ -79,7 +63,7 @@ public:
 					{
 						str[i] = '\0';
                         if (str[0])
-							_fileNames.push_back(generic_string(str));
+							_fileNames.push_back(std::wstring(str));
 						i = 0;
 					}
                     pStr++;
@@ -90,7 +74,7 @@ public:
 				{
                     str[i] = *pStr;
                     if (str[0])
-						_fileNames.push_back(generic_string(str));
+						_fileNames.push_back(std::wstring(str));
                     fini = true;
 					break;
 				}
@@ -105,7 +89,11 @@ public:
 		}
 	}
 
-	const TCHAR * getFileName(size_t index) const {
+	const stringVector& getFileNames() const {
+		return _fileNames;
+	}
+
+	const wchar_t * getFileName(size_t index) const {
 		if (index >= _fileNames.size())
 			return NULL;
 		return _fileNames[index].c_str();
@@ -118,7 +106,3 @@ public:
 private :
 	stringVector _fileNames;
 };
-
-
-
-#endif //FILENAME_STRING_SPLITTER_H

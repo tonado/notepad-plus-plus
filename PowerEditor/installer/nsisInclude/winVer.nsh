@@ -1,29 +1,18 @@
-; this file is part of installer for Notepad++
-; Copyright (C)2016 Don HO <don.h@free.fr>
+; This file is part of Notepad++ project
+; Copyright (C)2021 Don HO <don.h@free.fr>
 ;
-; This program is free software; you can redistribute it and/or
-; modify it under the terms of the GNU General Public License
-; as published by the Free Software Foundation; either
-; version 2 of the License, or (at your option) any later version.
-;
-; Note that the GPL places important restrictions on "derived works", yet
-; it does not provide a detailed definition of that term.  To avoid      
-; misunderstandings, we consider an application to constitute a          
-; "derivative work" for the purpose of this license if it does any of the
-; following:                                                             
-; 1. Integrates source code from Notepad++.
-; 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-;    installer, such as those produced by InstallShield.
-; 3. Links to a library or executes a program that does any of the above.
+; This program is free software: you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation, either version 3 of the License, or
+; at your option any later version.
 ;
 ; This program is distributed in the hope that it will be useful,
 ; but WITHOUT ANY WARRANTY; without even the implied warranty of
-; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 ; GNU General Public License for more details.
-; 
+;
 ; You should have received a copy of the GNU General Public License
-; along with this program; if not, write to the Free Software
-; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 ; http://nsis.sourceforge.net/Get_Windows_version
@@ -53,14 +42,12 @@ Function GetWindowsVersion
   ClearErrors
  
   ; check if Windows NT family
-  ReadRegStr $R0 HKLM \
-  "SOFTWARE\Microsoft\Windows NT\CurrentVersion" CurrentVersion
+  ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows NT\CurrentVersion" CurrentVersion
  
   IfErrors 0 lbl_winnt
  
   ; we are not NT
-  ReadRegStr $R0 HKLM \
-  "SOFTWARE\Microsoft\Windows\CurrentVersion" VersionNumber
+  ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion" VersionNumber
  
   StrCpy $R1 $R0 1
   StrCmp $R1 '4' 0 lbl_error
@@ -70,19 +57,19 @@ Function GetWindowsVersion
   StrCmp $R1 '4.0' lbl_win32_95
   StrCmp $R1 '4.9' lbl_win32_ME lbl_win32_98
  
-  lbl_win32_95:
-    StrCpy $R0 '95'
+lbl_win32_95:
+  StrCpy $R0 '95'
   Goto lbl_done
  
-  lbl_win32_98:
-    StrCpy $R0 '98'
+lbl_win32_98:
+  StrCpy $R0 '98'
   Goto lbl_done
  
-  lbl_win32_ME:
-    StrCpy $R0 'ME'
+lbl_win32_ME:
+  StrCpy $R0 'ME'
   Goto lbl_done
  
-  lbl_winnt:
+lbl_winnt:
  
   StrCpy $R1 $R0 1
  
@@ -105,46 +92,56 @@ Function GetWindowsVersion
   StrCmp $R1 '10.0' lbl_winnt_10
   Goto lbl_error
  
-  lbl_winnt_x:
-    StrCpy $R0 "NT $R0" 6
+lbl_winnt_x:
+  StrCpy $R0 "NT $R0" 6
   Goto lbl_done
  
-  lbl_winnt_2000:
-    Strcpy $R0 '2000'
+lbl_winnt_2000:
+  Strcpy $R0 '2000'
   Goto lbl_done
  
-  lbl_winnt_XP:
-    Strcpy $R0 'XP'
+lbl_winnt_XP:
+  Strcpy $R0 'XP'
   Goto lbl_done
  
-  lbl_winnt_2003:
-    Strcpy $R0 '2003'
+lbl_winnt_2003:
+  Strcpy $R0 '2003'
   Goto lbl_done
  
-  lbl_winnt_vista:
-    Strcpy $R0 'Vista'
+lbl_winnt_vista:
+  Strcpy $R0 'Vista'
   Goto lbl_done
  
-  lbl_winnt_7:
-    Strcpy $R0 '7'
+lbl_winnt_7:
+  Strcpy $R0 '7'
   Goto lbl_done
  
-  lbl_winnt_8:
-    Strcpy $R0 '8'
+lbl_winnt_8:
+  Strcpy $R0 '8'
   Goto lbl_done
  
-  lbl_winnt_81:
+lbl_winnt_81:
+lbl_winnt_10:
+  ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows NT\CurrentVersion" CurrentBuildNumber
+  ${If} $R0 >= 17763 ; Windows 10 or later
+      ${If} $R0 >= 22000 ; Windows 11 or later
+        Strcpy $R0 '11'
+        Goto lbl_done
+	  ${Else}
+        Strcpy $R0 '10'
+        Goto lbl_done
+	  ${EndIf}
+
+  ${Else}
     Strcpy $R0 '8.1'
+    Goto lbl_done
+  ${EndIf}
   Goto lbl_done
  
-  lbl_winnt_10:
-    Strcpy $R0 '10.0'
-  Goto lbl_done
- 
-  lbl_error:
-    Strcpy $R0 ''
-  lbl_done:
- 
+lbl_error:
+  Strcpy $R0 ''
+
+lbl_done:
   Pop $R1
   Exch $R0
  

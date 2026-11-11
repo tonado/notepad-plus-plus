@@ -1,109 +1,162 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-#ifndef VERTICALFILESWITCHER_H
-#define  VERTICALFILESWITCHER_H
+#pragma once
 
+#include <windows.h>
+
+#include <shlwapi.h>
+
+#include <algorithm>
+#include <string>
+#include <vector>
+
+#include "Buffer.h"
 #include "DockingDlgInterface.h"
+#include "TaskListDlg.h"
 #include "VerticalFileSwitcher_rc.h"
 #include "VerticalFileSwitcherListView.h"
 
-#define FS_PROJECTPANELTITLE		TEXT("Doc Switcher")
+#define FS_PROJECTPANELTITLE		L"Document List"
+
+struct sortCompareData {
+  HWND hListView = nullptr;
+  int columnIndex = 0;
+  int sortDirection = 0;
+};
 
 class VerticalFileSwitcher : public DockingDlgInterface {
 public:
-	VerticalFileSwitcher(): DockingDlgInterface(IDD_FILESWITCHER_PANEL) {};
+	VerticalFileSwitcher() : DockingDlgInterface(IDD_DOCLIST) {}
 
 	void init(HINSTANCE hInst, HWND hPere, HIMAGELIST hImaLst) {
 		DockingDlgInterface::init(hInst, hPere);
 		_hImaLst = hImaLst;
-	};
+	}
 
-    virtual void display(bool toShow = true) const {
-        DockingDlgInterface::display(toShow);
-    };
+	void display(bool toShow = true) const override;
 
-    void setParent(HWND parent2set){
-        _hParent = parent2set;
-    };
-	
+	void setParent(HWND parent2set){
+		_hParent = parent2set;
+	}
+
 	//Activate document in scintilla by using the internal index
 	void activateDoc(TaskLstFnStatus *tlfs) const;
 
-	int newItem(BufferID bufferID, int iView){
-		return _fileListView.newItem(bufferID, iView);
-	};
+	void closeDoc(TaskLstFnStatus *tlfs) const;
 
-	int closeItem(BufferID bufferID, int iView){
+	int newItem(BufferID bufferID, int iView) {
+		return _fileListView.newItem(bufferID, iView);
+	}
+
+	int closeItem(BufferID bufferID, int iView) {
 		return _fileListView.closeItem(bufferID, iView);
-	};
+	}
 
 	void activateItem(BufferID bufferID, int iView) {
 		_fileListView.activateItem(bufferID, iView);
-	};
+	}
 
 	void setItemIconStatus(BufferID bufferID) {
 		_fileListView.setItemIconStatus(bufferID) ;
-	};
+	}
 
-	generic_string getFullFilePath(size_t i) const {
+	void setItemColor(BufferID bufferID) {
+		_fileListView.setItemColor(bufferID);
+	}
+
+	std::wstring getFullFilePath(size_t i) const {
 		return _fileListView.getFullFilePath(i);
-	};
+	}
 
-	int setHeaderOrder(LPNMLISTVIEW pnm_list_view);
+	int setHeaderOrder(int columnIndex);
+	void updateHeaderArrow();
 
 	int nbSelectedFiles() const {
 		return _fileListView.nbSelectedFiles();
-	};
+	}
 
-	std::vector<SwitcherFileInfo> getSelectedFiles(bool reverse = false) const {
+	std::vector<BufferViewInfo> getSelectedFiles(bool reverse = false) const {
 		return _fileListView.getSelectedFiles(reverse);
-	};
+	}
+
+	void startColumnSort();
 
 	void reload(){
-		_fileListView.deleteColumn(1);
-		_fileListView.deleteColumn(0);
 		_fileListView.reload();
-	};
+		startColumnSort();
+	}
 
-	virtual void setBackgroundColor(COLORREF bgColour) {
+	void updateTabOrder(){
+		if (_lastSortingDirection == SORT_DIRECTION_NONE) {
+			_fileListView.reload();
+		}
+	}
+
+	void setBackgroundColor(COLORREF bgColour) override {
 		_fileListView.setBackgroundColor(bgColour);
-    };
+		
+		auto r = GetRValue(bgColour);
+		auto g = GetGValue(bgColour);
+		auto b = GetBValue(bgColour);
 
-	virtual void setForegroundColor(COLORREF fgColour) {
+		static constexpr int luminenceIncrementBy = 333; // 33.3 %
+
+		// main color is blue
+		// but difference must be high
+		// can have similar blue color as header
+		static constexpr int difference = 12;
+		const auto bAdjusted = static_cast<BYTE>(std::max<int>(0, static_cast<int>(b) - difference));
+		if (bAdjusted > r && bAdjusted > g)
+		{
+			// using values from NppDarkMode.cpp
+			// from double calculatePerceivedLighness(COLORREF c)
+			// double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+			// values multiplied by 1024 and then shift result by 10 - "fake" divide by 1024
+			// for performance
+			const auto grayscale = static_cast<BYTE>((r * 218 + g * 732 + b * 74) >> 10);
+			_bgColor = ::ColorAdjustLuma(RGB(grayscale, grayscale, grayscale), luminenceIncrementBy, TRUE);
+		}
+		else
+		{
+			_bgColor = ::ColorAdjustLuma(bgColour, luminenceIncrementBy, TRUE);
+		}
+	}
+
+	void setForegroundColor(COLORREF fgColour) override {
 		_fileListView.setForegroundColor(fgColour);
-    };
-
+	}
 protected:
-	virtual INT_PTR CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam);
+	HMENU _hGlobalMenu = nullptr;
+	intptr_t CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	void initPopupMenus();
+	void popupMenuCmd(int cmdID);
 
 private:
+	bool colHeaderRClick = false;
+	int _lastSortingColumn = 0;
+	int _lastSortingDirection = SORT_DIRECTION_NONE;
 	VerticalFileSwitcherListView _fileListView;
-	HIMAGELIST _hImaLst;
+	HIMAGELIST _hImaLst = nullptr;
+
+	using DockingDlgInterface::init;
+
+	static COLORREF _bgColor;
+	static LRESULT listViewNotifyCustomDraw(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+	static LRESULT CALLBACK FileSwitcherNotifySubclass(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+	static LRESULT CALLBACK ListViewParentNotifyProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 };
-#endif // VERTICALFILESWITCHER_H

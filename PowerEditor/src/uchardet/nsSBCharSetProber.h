@@ -66,10 +66,10 @@ struct SequenceModel
 class nsSingleByteCharSetProber : public nsCharSetProber{
 public:
   nsSingleByteCharSetProber(const SequenceModel *model) 
-    :mModel(model), mReversed(PR_FALSE), mNameProber(0) { Reset(); }
+    :mModel(model), mReversed(PR_FALSE) { Reset(); }
   nsSingleByteCharSetProber(const SequenceModel *model, PRBool reversed, nsCharSetProber* nameProber)
     :mModel(model), mReversed(reversed), mNameProber(nameProber) { Reset(); }
-  nsSingleByteCharSetProber(): mModel(0), mReversed(0){};
+  nsSingleByteCharSetProber(): mModel(0), mReversed(0){}
   virtual const char* GetCharSetName();
   virtual nsProbingState HandleData(const char* aBuf, PRUint32 aLen);
   virtual nsProbingState GetState(void) {return mState;}
@@ -84,29 +84,29 @@ public:
   // prober has a hard-coded call to FilterWithoutEnglishLetters which gets rid
   // of the English letters.
   PRBool KeepEnglishLetters() {return mModel->keepEnglishLetter;} // (not implemented)
-  nsSingleByteCharSetProber operator=(const nsSingleByteCharSetProber&){};
+  nsSingleByteCharSetProber operator=(const nsSingleByteCharSetProber&) = delete;
 
 #ifdef DEBUG_chardet
   virtual void  DumpStatus();
 #endif
 
 protected:
-  nsProbingState mState;
-  const SequenceModel* const mModel;
-  const PRBool mReversed; // PR_TRUE if we need to reverse every pair in the model lookup
+  nsProbingState mState = eDetecting;
+  const SequenceModel* const mModel = nullptr;
+  const PRBool mReversed = PR_FALSE; // PR_TRUE if we need to reverse every pair in the model lookup
 
   //char order of last character
-  unsigned char mLastOrder;
+  unsigned char mLastOrder = 0;
 
-  PRUint32 mTotalSeqs;
-  PRUint32 mSeqCounters[NUMBER_OF_SEQ_CAT];
+  PRUint32 mTotalSeqs = 0;
+  PRUint32 mSeqCounters[NUMBER_OF_SEQ_CAT] = { 0 };
 
-  PRUint32 mTotalChar;
+  PRUint32 mTotalChar = 0;
   //characters that fall in our sampling range
-  PRUint32 mFreqChar;
+  PRUint32 mFreqChar = 0;
   
   // Optional auxiliary prober for name decision. created and destroyed by the GroupProber
-  nsCharSetProber* mNameProber; 
+  nsCharSetProber* mNameProber = nullptr; 
 
 };
 

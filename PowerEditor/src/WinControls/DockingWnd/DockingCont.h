@@ -1,29 +1,18 @@
-// this file is part of docking functionality for Notepad++
-// Copyright (C)2005 Jens Lorenz <jens.plugin.npp@gmx.de>
-// 
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-// 
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// This file is part of Notepad++ project
+// Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #pragma once
@@ -53,51 +42,57 @@ enum eMousePos {
 #define CLOSEBTN_POS_LEFT	3
 #define CLOSEBTN_POS_TOP	3
 
+constexpr int g_dockingContCloseBtnSize = 12;
+
+constexpr int g_dockingContTabIconSize = 16;
+constexpr int g_dockingContTabIconPadding = 3;
 
 class DockingCont : public StaticDialog
 {
 public:
 	DockingCont();
-	~DockingCont();
+	~DockingCont() override;
 
 	HWND getTabWnd() {
 		return _hContTab;
-	};
-	HWND getCaptionWnd() { 
+	}
+	HWND getCaptionWnd() {
 		if (_isFloating == false)
 			return _hCaption;
 		else
 			return _hSelf;
-	};
+	}
 
-	tTbData* createToolbar(tTbData data);
-	void	 removeToolbar(tTbData data);
-	tTbData* findToolbarByWnd(HWND hClient);
-	tTbData* findToolbarByName(TCHAR* pszName);
+	DockedWidgetData* createDockedWidget(const DockedWidgetData& data);
+	void removeDockedWidget(const DockedWidgetData& data);
+	DockedWidgetData* findDockedWidgetByWnd(HWND hClient);
+	DockedWidgetData* findDockedWidgetByName(wchar_t* pszName);
 
-	void showToolbar(tTbData *pTbData, BOOL state);
+	void showDockedWidget(DockedWidgetData *pTbData, BOOL state);
 
 	BOOL updateInfo(HWND hClient) {
-		for (size_t iTb = 0; iTb < _vTbData.size(); ++iTb)
+		for (size_t iTb = 0; iTb < _dwDataVect.size(); ++iTb)
 		{
-			if (_vTbData[iTb]->hClient == hClient)
+			if (_dwDataVect[iTb]->hClient == hClient)
 			{
 				updateCaption();
 				return TRUE;
 			}
 		}
 		return FALSE;
-	};
+	}
 
-	void setActiveTb(tTbData* pTbData);
-	void setActiveTb(INT iItem);
-	INT getActiveTb();
-	tTbData * getDataOfActiveTb();
-	std::vector<tTbData *> getDataOfAllTb() {
-		return _vTbData;
-	};
-	std::vector<tTbData *> getDataOfVisTb();
-	bool isTbVis(tTbData* data);
+	void setActiveTb(DockedWidgetData* pTbData);
+	void setActiveTb(int iItem);
+	int getActiveTb();
+	DockedWidgetData * getDataOfActiveTb();
+
+	std::vector<DockedWidgetData *> getDataOfAllTb() {
+		return _dwDataVect;
+	}
+
+	std::vector<DockedWidgetData *> getDataOfVisTb();
+	bool isTbVis(DockedWidgetData* data);
 
 	void doDialog(bool willBeShown = true, bool isFloating = false);
 
@@ -106,7 +101,7 @@ public:
 	}
 
 	size_t getElementCnt() {
-		return _vTbData.size();
+		return _dwDataVect.size();
 	}
 
 	// interface function for gripper
@@ -114,48 +109,46 @@ public:
 		BOOL	dragFromTabTemp = _dragFromTab;
 		_dragFromTab = FALSE;
 		return dragFromTabTemp;
-	};
+	}
 
 	void setCaptionTop(BOOL isTopCaption) {
 		_isTopCaption = (isTopCaption == CAPTION_TOP);
 		onSize();
-	};
+	}
 
 	void focusClient();
 
 	void SetActive(BOOL bState) {
 		_isActive = bState;
 		updateCaption();
-	};
+	}
 
-	void setTabStyle(const BOOL & bDrawOgLine) {
-		_bDrawOgLine = bDrawOgLine;
-		RedrawWindow(_hContTab, NULL, NULL, 0);
-	};
-
-    virtual void destroy() {
-		for (int iTb = static_cast<int>(_vTbData.size()); iTb > 0; iTb--)
+	void destroy() override {
+		for (auto& dwData : _dwDataVect)
 		{
-			delete _vTbData[iTb-1];
+			if (dwData->hIconTab != nullptr)
+			{
+				::DestroyIcon(dwData->hIconTab);
+				dwData->hIconTab = nullptr;
+			}
+			delete dwData;
 		}
 		::DestroyWindow(_hSelf);
-	};
+	}
 
-protected :
+	void destroyFonts();
+
+protected:
 
 	// Subclassing caption
 	LRESULT runProcCaption(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
-	static LRESULT CALLBACK wndCaptionProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) {
-		return (((DockingCont *)(::GetWindowLongPtr(hwnd, GWLP_USERDATA)))->runProcCaption(hwnd, Message, wParam, lParam));
-	};
+	static LRESULT CALLBACK DockingCaptionSubclass(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 
 	// Subclassing tab
 	LRESULT runProcTab(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
-	static LRESULT CALLBACK wndTabProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) {
-		return (((DockingCont *)(::GetWindowLongPtr(hwnd, GWLP_USERDATA)))->runProcTab(hwnd, Message, wParam, lParam));
-	};
+	static LRESULT CALLBACK DockingTabSubclass(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 
-    virtual INT_PTR CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam);
+	intptr_t CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 
 	// drawing functions
 	void drawCaptionItem(DRAWITEMSTRUCT *pDrawItemStruct);
@@ -163,75 +156,68 @@ protected :
 	void onSize();
 
 	// functions for caption handling and drawing
-	eMousePos isInRect(HWND hwnd, INT x, INT y);
+	eMousePos isInRect(HWND hwnd, int x, int y);
 
-	// handling of toolbars
-	void doClose();
+	// handling of docked widgets
+	void doClose(BOOL closeAll);
 
 	// return new item
-	INT  SearchPosInTab(tTbData* pTbData);
-	void SelectTab(INT iTab);
+	int  searchPosInTab(DockedWidgetData* pTbData);
+	void selectTab(int iTab);
 
-	INT  hideToolbar(tTbData* pTbData, BOOL hideClient = TRUE);
-	void viewToolbar(tTbData *pTbData);
-	INT  removeTab(tTbData* pTbData) {
-		return hideToolbar(pTbData, FALSE);
-	};
+	int  hideDockedWidget(DockedWidgetData* pTbData, BOOL hideClient = TRUE);
+	void viewDockedWidget(DockedWidgetData *pTbData);
+
+	int  removeTab(DockedWidgetData* pTbData) {
+		return hideDockedWidget(pTbData, FALSE);
+	}
 
 	bool updateCaption();
 	LPARAM NotifyParent(UINT message);
 
 private:
 	// handles
-	BOOL					_isActive;
-	bool					_isFloating;
-	HWND					_hCaption;
-	HWND					_hContTab;
+	BOOL _isActive = FALSE;
+	bool _isFloating = false;
+	HWND _hCaption = nullptr;
+	HWND _hContTab = nullptr;
+	HWND _hTabUpdown = nullptr;
 
 	// horizontal font for caption and tab
-	HFONT					_hFont;
+	HFONT _hFont = nullptr;
+	HFONT _hFontCaption = nullptr;
 
 	// caption params
-	BOOL					_isTopCaption;
-	generic_string		    _pszCaption;
+	BOOL _isTopCaption = CAPTION_TOP;
+	std::wstring _pszCaption;
 
-	BOOL					_isMouseDown;
-	BOOL					_isMouseClose;
-	BOOL					_isMouseOver;
-	RECT					_rcCaption;
-	
-	// tab style
-	BOOL					_bDrawOgLine;
+	BOOL _isMouseDown = FALSE;
+	BOOL _isMouseClose = FALSE;
+	BOOL _isMouseOver = FALSE;
+	RECT _rcCaption{};
 
 	// Important value for DlgMoving class
-	BOOL					_dragFromTab;
-
-	// subclassing handle for caption
-	WNDPROC					_hDefaultCaptionProc;
-
-	// subclassing handle for tab
-	WNDPROC					_hDefaultTabProc;
+	BOOL _dragFromTab = FALSE;
 
 	// for moving and reordering
-	UINT					_prevItem;
-	BOOL					_beginDrag;
+	UINT _prevItem = 0;
+	BOOL _beginDrag = FALSE;
 
 	// Is tooltip
-	BOOL					_bTabTTHover;
-	INT						_iLastHovered;
+	BOOL _bTabTTHover = FALSE;
+	INT _iLastHovered = 0;
 
-	BOOL					_bCaptionTT;
-	BOOL					_bCapTTHover;
-	eMousePos				_hoverMPos;
+	BOOL _bCaptionTT = FALSE;
+	BOOL _bCapTTHover = FALSE;
+	eMousePos _hoverMPos = posClose;
 
 	int _captionHeightDynamic = HIGH_CAPTION;
 	int _captionGapDynamic = CAPTION_GAP;
 	int _closeButtonPosLeftDynamic = CLOSEBTN_POS_LEFT;
 	int _closeButtonPosTopDynamic = CLOSEBTN_POS_TOP;
-	int _closeButtonWidth;
-	int _closeButtonHeight;
+	int _closeButtonWidth = g_dockingContCloseBtnSize;
+	int _closeButtonHeight = g_dockingContCloseBtnSize;
 
 	// data of added windows
-	std::vector<tTbData *>		_vTbData;
+	std::vector<DockedWidgetData *> _dwDataVect;
 };
-

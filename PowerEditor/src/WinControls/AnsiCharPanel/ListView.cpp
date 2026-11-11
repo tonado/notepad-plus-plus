@@ -1,99 +1,224 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid
-// misunderstandings, we consider an application to constitute a
-// "derivative work" for the purpose of this license if it does any of the
-// following:
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
+#include "ListView.h"
+
+#include <windows.h>
+
+#include <commctrl.h>
 
 #include <stdexcept>
-#include "ListView.h"
-#include "Parameters.h"
-#include "localization.h"
+#include <string>
+#include <vector>
 
-void ListView::init(HINSTANCE hInst, HWND parent)
+#include "NppConstants.h"
+#include "NppDarkMode.h"
+#include "Window.h"
+
+void ListViewBase::init(HINSTANCE hInst, HWND hParent, UINT_PTR listViewID, DWORD style, DWORD exStyle)
 {
-	Window::init(hInst, parent);
-    INITCOMMONCONTROLSEX icex;
+	Window::init(hInst, hParent);
 
-    // Ensure that the common control DLL is loaded.
-    icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
-    icex.dwICC  = ICC_LISTVIEW_CLASSES;
-    InitCommonControlsEx(&icex);
+	INITCOMMONCONTROLSEX icex{};
+	icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+	icex.dwICC = ICC_LISTVIEW_CLASSES;
+	::InitCommonControlsEx(&icex);
 
-    // Create the list-view window in report view with label editing enabled.
-	int listViewStyles = LVS_REPORT | LVS_NOSORTHEADER\
-						| LVS_SINGLESEL | LVS_AUTOARRANGE\
-						| LVS_SHAREIMAGELISTS | LVS_SHOWSELALWAYS;
+	_hSelf = ::CreateWindowExW(
+		0,
+		WC_LISTVIEW,
+		L"",
+		WS_CHILD | WS_BORDER | style,
+		0, 0, 0, 0,
+		_hParent,
+		listViewID == 0 ? nullptr : reinterpret_cast<HMENU>(listViewID),
+		hInst,
+		nullptr);
 
-	_hSelf = ::CreateWindow(WC_LISTVIEW,
-                                TEXT(""),
-								WS_CHILD | WS_BORDER | listViewStyles,
-                                0,
-                                0,
-                                0,
-                                0,
-                                _hParent,
-                                nullptr,
-                                hInst,
-                                nullptr);
 	if (!_hSelf)
 	{
 		throw std::runtime_error("ListView::init : CreateWindowEx() function return null");
 	}
 
-	::SetWindowLongPtr(_hSelf, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-	_defaultProc = reinterpret_cast<WNDPROC>(::SetWindowLongPtr(_hSelf, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(staticProc)));
+	NppDarkMode::subclassListViewControl(_hSelf);
 
-	DWORD exStyle = ListView_GetExtendedListViewStyle(_hSelf);
-	exStyle |= LVS_EX_FULLROWSELECT | LVS_EX_BORDERSELECT | _extraStyle;
-	ListView_SetExtendedListViewStyle(_hSelf, exStyle);
+	subclassParentNotifyListViewCustomDraw(_hParent, listViewID);
 
-	if (_columnInfos.size())
+	const DWORD lvExStyle = ListView_GetExtendedListViewStyle(_hSelf) | exStyle;
+	ListView_SetExtendedListViewStyle(_hSelf, lvExStyle);
+
+	setDarkTheme();
+}
+
+void ListViewBase::destroy()
+{
+	if (_hSelf != nullptr)
 	{
-		LVCOLUMN lvColumn;
+		::DestroyWindow(_hSelf);
+		_hSelf = nullptr;
+	}
+}
+
+void ListViewBase::subclassParentNotifyListViewCustomDraw(HWND hParent, UINT_PTR listViewID)
+{
+	if (::GetWindowSubclass(hParent, ListViewBase::ListViewParentNotifyCustomDrawSubclass, static_cast<UINT_PTR>(SubclassID::first), nullptr) == FALSE)
+	{
+		::SetWindowSubclass(hParent, ListViewBase::ListViewParentNotifyCustomDrawSubclass, static_cast<UINT_PTR>(SubclassID::first), static_cast<DWORD_PTR>(listViewID));
+	}
+}
+
+LRESULT ListViewBase::listViewNotifyCustomDraw(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) noexcept
+{
+	const auto lplvcd = reinterpret_cast<LPNMLVCUSTOMDRAW>(lParam);
+
+	switch (lplvcd->nmcd.dwDrawStage)
+	{
+		case CDDS_PREPAINT:
+		{
+			return CDRF_NOTIFYITEMDRAW;
+		}
+
+		case CDDS_ITEMPREPAINT:
+		{
+			const HWND hList = lplvcd->nmcd.hdr.hwndFrom;
+			const RECT& rcRow = lplvcd->nmcd.rc;
+
+			const bool isThemeDark = NppDarkMode::isThemeDark();
+			const bool isSelected = ListView_GetItemState(hList, lplvcd->nmcd.dwItemSpec, LVIS_SELECTED) == LVIS_SELECTED;
+			const bool isHot = (lplvcd->nmcd.uItemState & CDIS_HOT) == CDIS_HOT;
+
+			const auto style = ::GetWindowLongPtrW(hList, GWL_STYLE);
+			const bool hasHeader = ((style & LVS_REPORT) != 0) && ((style & LVS_NOCOLUMNHEADER) == 0);
+
+			if (isThemeDark && (isSelected || isHot))
+			{
+				const COLORREF bgColor = isSelected ? NppDarkMode::getCtrlBackgroundColor() : NppDarkMode::getHotBackgroundColor();
+
+				lplvcd->clrText = NppDarkMode::getTextColor();
+				lplvcd->clrTextBk = bgColor;
+
+				const auto oldClr = ::SetDCBrushColor(lplvcd->nmcd.hdc, bgColor);
+				const auto hBrush = static_cast<HBRUSH>(::GetStockObject(DC_BRUSH));
+
+				if (!hasHeader)
+				{
+					::FillRect(lplvcd->nmcd.hdc, &rcRow, hBrush);
+				}
+				else
+				{
+					const auto hHeader = ListView_GetHeader(hList);
+					const auto nCol = Header_GetItemCount(hHeader);
+
+					static constexpr LONG paddingLeft = 1;
+					static constexpr LONG paddingRight = 2;
+
+					const auto lvii = LVITEMINDEX{ .iItem= static_cast<int>(lplvcd->nmcd.dwItemSpec), .iGroup = -1 };
+					RECT rcSubitem{
+						rcRow.left
+						, rcRow.top
+						, rcRow.left + ListView_GetColumnWidth(hList, 0) - paddingRight
+						, rcRow.bottom
+					};
+					::FillRect(lplvcd->nmcd.hdc, &rcSubitem, hBrush);
+
+					for (int i = 1; i < nCol; ++i)
+					{
+						ListView_GetItemIndexRect(hList, &lvii, i, LVIR_BOUNDS, &rcSubitem);
+						rcSubitem.left -= paddingLeft;
+						rcSubitem.right -= paddingRight;
+						::FillRect(lplvcd->nmcd.hdc, &rcSubitem, hBrush);
+					}
+				}
+
+				::SetDCBrushColor(lplvcd->nmcd.hdc, oldClr);
+			}
+
+			if (isSelected)
+			{
+				::DrawFocusRect(lplvcd->nmcd.hdc, &rcRow);
+			}
+			else if (isHot)
+			{
+				::FrameRect(lplvcd->nmcd.hdc, &rcRow, isThemeDark ? NppDarkMode::getHotEdgeBrush() : ::GetSysColorBrush(COLOR_WINDOWTEXT));
+			}
+
+			return CDRF_DODEFAULT;
+		}
+
+		default:
+		{
+			break;
+		}
+	}
+	return ::DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+LRESULT CALLBACK ListViewBase::ListViewParentNotifyCustomDrawSubclass(
+	HWND hWnd,
+	UINT uMsg,
+	WPARAM wParam,
+	LPARAM lParam,
+	UINT_PTR uIdSubclass,
+	DWORD_PTR dwRefData
+) noexcept
+{
+	switch (uMsg)
+	{
+		case WM_NCDESTROY:
+		{
+			::RemoveWindowSubclass(hWnd, ListViewBase::ListViewParentNotifyCustomDrawSubclass, uIdSubclass);
+			break;
+		}
+
+		case WM_NOTIFY:
+		{
+			const auto nmhdr = reinterpret_cast<LPNMHDR>(lParam);
+			if (nmhdr->idFrom == static_cast<UINT_PTR>(dwRefData) && nmhdr->code == NM_CUSTOMDRAW)
+			{
+				return ListViewBase::listViewNotifyCustomDraw(hWnd, uMsg, wParam, lParam);
+			}
+			break;
+		}
+	}
+	return ::DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+void ListView::init(HINSTANCE hInst, HWND parent, UINT_PTR listViewID, DWORD style, DWORD exStyle)
+{
+	ListViewBase::init(hInst, parent, listViewID, style, exStyle);
+
+	if (!_columnInfos.empty())
+	{
+		LVCOLUMN lvColumn{};
 		lvColumn.mask = LVCF_TEXT | LVCF_WIDTH;
 
 		short i = 0;
-		for (auto it = _columnInfos.begin(); it != _columnInfos.end(); ++it)
+		for (auto& colInfo : _columnInfos)
 		{
-			lvColumn.cx = static_cast<int>(it->_width);
-			lvColumn.pszText = const_cast<TCHAR *>(it->_label.c_str());
-			ListView_InsertColumn(_hSelf, ++i, &lvColumn);
+			lvColumn.cx = static_cast<int>(colInfo._width);
+			lvColumn.pszText = colInfo._label.data();
+			ListView_InsertColumn(_hSelf, ++i, &lvColumn);  // index is not 0 based but 1 based
 		}
 	}
 }
 
-void ListView::destroy()
+void ListView::addLine(std::vector<std::wstring>& values2Add, LPARAM lParam, int pos2insert)
 {
-	::DestroyWindow(_hSelf);
-	_hSelf = NULL;
-}
-
-void ListView::addLine(const std::vector<generic_string> & values2Add, LPARAM lParam, int pos2insert)
-{
-	if (not values2Add.size())
+	if (!values2Add.size())
 		return;
 
 	if (pos2insert == -1)
@@ -101,10 +226,10 @@ void ListView::addLine(const std::vector<generic_string> & values2Add, LPARAM lP
 
 	auto it = values2Add.begin();
 
-	LVITEM item;
+	LVITEM item{};
 	item.mask = LVIF_TEXT | LVIF_PARAM;
 
-	item.pszText = const_cast<TCHAR *>(it->c_str());
+	item.pszText = it->data();
 	item.iItem = pos2insert;
 	item.iSubItem = 0;
 	item.lParam = lParam;
@@ -114,15 +239,45 @@ void ListView::addLine(const std::vector<generic_string> & values2Add, LPARAM lP
 	int j = 0;
 	for (; it != values2Add.end(); ++it)
 	{
-		ListView_SetItemText(_hSelf, pos2insert, ++j, const_cast<TCHAR *>(it->c_str()));
+		ListView_SetItemText(_hSelf, pos2insert, ++j, it->data());
 	}
 }
 
+size_t ListView::findAlphabeticalOrderPos(const std::wstring& string2Cmp, SortDirection sortDir)
+{
+	const size_t itemCount = nbItem();
+	if (!itemCount)
+		return 0;
+
+	for (size_t i = 0; i < itemCount; ++i)
+	{
+		wchar_t str[MAX_PATH] = { '\0' };
+		ListView_GetItemText(_hSelf, i, 0, str, sizeof(str));
+
+		const int res = string2Cmp.compare(str);
+
+		if (res < 0) // string2Cmp < str
+		{
+			if (sortDir == sortEncrease)
+			{
+				return i;
+			}
+		}
+		else // str2Cmp >= str
+		{
+			if (sortDir == sortDecrease)
+			{
+				return i;
+			}
+		}
+	}
+	return itemCount;
+}
 
 
 LPARAM ListView::getLParamFromIndex(int itemIndex) const
 {
-	LVITEM item;
+	LVITEM item{};
 	item.mask = LVIF_PARAM;
 	item.iItem = itemIndex;
 	ListView_GetItem(_hSelf, &item);
@@ -130,8 +285,15 @@ LPARAM ListView::getLParamFromIndex(int itemIndex) const
 	return item.lParam;
 }
 
-LRESULT ListView::runProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+std::vector<size_t> ListView::getCheckedIndexes() const
 {
-	return ::CallWindowProc(_defaultProc, hwnd, Message, wParam, lParam);
+	std::vector<size_t> checkedIndexes;
+	const size_t itemCount = nbItem();
+	for (size_t i = 0; i < itemCount; ++i)
+	{
+		UINT st = ListView_GetItemState(_hSelf, i, LVIS_STATEIMAGEMASK);
+		if (st == INDEXTOSTATEIMAGEMASK(2)) // checked
+			checkedIndexes.push_back(i);
+	}
+	return checkedIndexes;
 }
-

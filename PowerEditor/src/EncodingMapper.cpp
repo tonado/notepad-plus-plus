@@ -1,29 +1,18 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #include <string.h>
@@ -50,12 +39,12 @@ static EncodingUnit encodings[] = {
     {28597, "greek ISO_8859-7 ISO-8859-7 csISOLatinGreek greek8 iso-ir-126 ELOT_928 ECMA-118"}, //IDM_FORMAT_ISO_8859_7 
     {28598, "hebrew ISO_8859-8 ISO-8859-8 csISOLatinHebrew iso-ir-138"},                        //IDM_FORMAT_ISO_8859_8 
     {28599, "latin5 ISO_8859-9 ISO-8859-9 csISOLatin5 iso-ir-148 l5"},                          //IDM_FORMAT_ISO_8859_9 
-    {28600, ""/*"latin6 ISO_8859-10 ISO-8859-10 csISOLatin6 iso-ir-157 l6"*/},                        //IDM_FORMAT_ISO_8859_10
-    {28601, ""/*"ISO_8859-11 ISO-8859-11"*/},                                                         //IDM_FORMAT_ISO_8859_11
+    {-1,    ""/*"latin6 ISO_8859-10 ISO-8859-10 csISOLatin6 iso-ir-157 l6"*/},                  //IDM_FORMAT_ISO_8859_10
+    {-1,    ""/*"ISO_8859-11 ISO-8859-11"*/},                                                   //IDM_FORMAT_ISO_8859_11
     {28603, "ISO_8859-13 ISO-8859-13"},                                                         //IDM_FORMAT_ISO_8859_13
     {28604, "iso-celtic latin8 ISO_8859-14 ISO-8859-14 18 iso-ir-199"},                         //IDM_FORMAT_ISO_8859_14
     {28605, "Latin-9 ISO_8859-15 ISO-8859-15"},                                                 //IDM_FORMAT_ISO_8859_15
-    {28606, ""/*"latin10 ISO_8859-16 ISO-8859-16 110 iso-ir-226"*/},                                  //IDM_FORMAT_ISO_8859_16
+    {-1,    ""/*"latin10 ISO_8859-16 ISO-8859-16 110 iso-ir-226"*/},                            //IDM_FORMAT_ISO_8859_16
     {437,   "IBM437 cp437 437 csPC8CodePage437"},                                               //IDM_FORMAT_DOS_437
     {720,   "IBM720 cp720 oem720 720"},                                                         //IDM_FORMAT_DOS_720
     {737,   "IBM737 cp737 oem737 737"},                                                         //IDM_FORMAT_DOS_737
@@ -83,12 +72,12 @@ static EncodingUnit encodings[] = {
     {20866, "koi8_r csKOI8R"}                                                                   //IDM_FORMAT_KOI8R_CYRILLIC
 };
 
-EncodingMapper * EncodingMapper::_pSelf = new EncodingMapper;
-
-bool isInListA(const char *token, const char *list) {
+bool isInListA(const char *token, const char *list)
+{
 	if ((!token) || (!list))
 		return false;
-	char word[64];
+
+	char word[64] {};
 	size_t i = 0;
 	size_t j = 0;
 	for (size_t len = strlen(list); i <= len; ++i)
@@ -100,7 +89,7 @@ bool isInListA(const char *token, const char *list) {
 				word[j] = '\0';
 				j = 0;
 				
-				if (!stricmp(token, word))
+				if (!_stricmp(token, word))
 					return true;
 			}
 		}
@@ -111,7 +100,7 @@ bool isInListA(const char *token, const char *list) {
 		}
 	}
 	return false;
-};
+}
 
 int EncodingMapper::getEncodingFromIndex(int index) const
 {
@@ -126,6 +115,8 @@ int EncodingMapper::getIndexFromEncoding(int encoding) const
 	bool found = false;
 	int nbItem = sizeof(encodings)/sizeof(EncodingUnit);
 	int i = 0;
+	if (encoding == -1)
+		return -1;
 	for ( ; i < nbItem; ++i)
 	{
 		if (encodings[i]._codePage == encoding)
@@ -139,8 +130,8 @@ int EncodingMapper::getIndexFromEncoding(int encoding) const
 
 int EncodingMapper::getEncodingFromString(const char *encodingAlias) const
 {
-    if (isInListA(encodingAlias, "utf-8 utf8"))
-        return SC_CP_UTF8;
+	if (isInListA(encodingAlias, "utf-8 utf8"))
+		return SC_CP_UTF8;
 
 	size_t nbItem = sizeof(encodings)/sizeof(EncodingUnit);
 	int enc = -1;

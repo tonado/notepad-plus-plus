@@ -1,167 +1,244 @@
 // This file is part of Notepad++ project
-// Copyright (C)2017 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #pragma once
 
-#include "StaticDialog.h"
-#include "pluginsAdminRes.h"
-#include "TabBar.h"
+#include <windows.h>
+
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "Common.h"
 #include "ListView.h"
-#include "tinyxml.h"
+#include "StaticDialog.h"
+#include "TabBar.h"
+#include "URLCtrl.h"
+#include "dpiManagerV2.h"
+#include "pluginsAdminRes.h"
 
 class PluginsManager;
 
 struct PluginUpdateInfo
 {
-	generic_string name;
-	generic_string version;
-	generic_string homepage;
-	generic_string sourceUrl;
-	generic_string description;
-	generic_string author;
-	generic_string md5;
-	generic_string alias;
-	generic_string download;
+	std::wstring _fullFilePath; // only for the installed Plugin
 
-	generic_string describe();
-};
-
-struct Version
-{
-	unsigned long _major = 0;
-	unsigned long _minor = 0;
-	unsigned long _patch = 0;
-	unsigned long _build = 0;
-	void setVersionFrom(generic_string filePath);
-	generic_string toString();
-};
-
-struct LoadedPluginInfo
-{
-	generic_string _fullFilePath;
-
-	generic_string _id;
-	generic_string _name; // found from id/hash (or product name - retrieved from binary) or file name 
+	std::wstring _folderName;   // plugin folder name - should be the same name with plugin and should be uniq among the plugins
+	std::wstring _displayName;  // plugin description name
 	Version _version;
+	// Optional
+	std::pair<Version, Version> _nppCompatibleVersions; // compatible to Notepad++ interval versions: <from, to> example: 
+	                                                    // <0.0.0.0, 0.0.0.0>: plugin is compatible to all Notepad++ versions (due to invalid format set)
+	                                                    // <6.9, 6.9>: plugin is compatible to only v6.9
+	                                                    // <4.2, 6.6.6>: from v4.2 (included) to v6.6.6 (included)
+	                                                    // <0.0.0.0, 8.2.1> all until v8.2.1 (included)
+	                                                    // <8.3, 0.0.0.0> from v8.3 (included) to all
 
-	LoadedPluginInfo(const generic_string & fullFilePath, const generic_string & filename);
+	// Optional
+	std::pair<std::pair<Version, Version>, std::pair<Version, Version>> _oldVersionCompatibility; // Used only by Plugin Manager to filter plugins while loading plugins
+	                                                                                              // The 1st interval versions are for old plugins' versions
+	                                                                                              // The 2nd interval versions are for Notepad++ versions
+	                                                                                              // which are compatible with the old plugins' versions given in the 1st interval
+	
+	std::wstring _homepage;
+	std::wstring _sourceUrl;
+	std::wstring _description;
+	std::wstring _author;
+	std::wstring _id;           // Plugin package ID: SHA-256 hash
+	std::wstring _repository;
+	bool _isVisible = true;       // if false then it should not be displayed 
+
+	std::wstring describe() const;
+	PluginUpdateInfo() = default;
+	PluginUpdateInfo(const std::wstring& fullFilePath, const std::wstring& fileName);
 };
 
 struct NppCurrentStatus
 {
-	bool _isAdminMode;              // can launch gitup en Admin mode directly
+	bool _isAdminMode = false;         // can launch gitup en Admin mode directly
 
-	bool _isInProgramFiles;         // true: install/update/remove on "Program files" (ADMIN MODE)
-									// false: install/update/remove on NPP_INST or install on %APPDATA%, update/remove on %APPDATA% & NPP_INST (NORMAL MODE)
+	bool _isInProgramFiles = true;     // true: install/update/remove on "Program files" (ADMIN MODE)
+	                                   // false: install/update/remove on NPP_INST or install on %APPDATA%, update/remove on %APPDATA% & NPP_INST (NORMAL MODE)
 									
-	bool _isAppDataPluginsAllowed;  // true: install on %APPDATA%, update / remove on %APPDATA% & "Program files" or NPP_INST
+	bool _isAppDataPluginsAllowed = false;  // true: install on %APPDATA%, update / remove on %APPDATA% & "Program files" or NPP_INST
 
-	generic_string _nppInstallPath;
-	generic_string _appdataPath;
+	std::wstring _nppInstallPath;
+	std::wstring _appdataPath;
 
-	// it should determinate :
+	// it should determine :
 	// 1. deployment location : %ProgramFile%   %appdata%   %other%
 	// 2. gitup launch mode:    ADM             ADM         NOMAL
-	bool shouldLaunchInAdmMode() { return _isInProgramFiles; };
+	bool shouldLaunchInAdmMode() const { return _isInProgramFiles; }
 };
+
+enum COLUMN_TYPE { COLUMN_PLUGIN, COLUMN_VERSION };
+enum SORT_TYPE { DISPLAY_NAME_ALPHABET_ENCREASE, DISPLAY_NAME_ALPHABET_DECREASE };
+
+
+class PluginViewList
+{
+friend class PluginsAdminDlg;
+
+public:
+	PluginViewList() = default;
+	~PluginViewList() {
+		_ui.destroy();
+		for (auto& i : _list)
+		{
+			delete i;
+		}
+	}
+
+	void pushBack(PluginUpdateInfo* pi);
+	HWND getViewHwnd() { return _ui.getHSelf(); }
+	void displayView(bool doShow) const { _ui.display(doShow); }
+	std::vector<size_t> getCheckedIndexes() const { return _ui.getCheckedIndexes(); }
+	std::vector<PluginUpdateInfo*> fromUiIndexesToPluginInfos(const std::vector<size_t>& ) const;
+	long getSelectedIndex() const { return _ui.getSelectedIndex(); }
+	void setSelection(int index) const { _ui.setSelection(index); }
+	void initView(HINSTANCE hInst, HWND parent) {
+		_ui.init(hInst, parent, IDC_PLUGINADM_LISTVIEW,
+			LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
+			LVS_EX_FULLROWSELECT | LVS_EX_BORDERSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_CHECKBOXES);
+	}
+	void addColumn(const columnInfo& column2Add) { _ui.addColumn(column2Add); }
+	void reSizeView(RECT & rc) { _ui.reSizeToWH(rc); }
+	size_t nbItem() const { return _ui.nbItem(); }
+	PluginUpdateInfo* getPluginInfoFromUiIndex(size_t index) const { return reinterpret_cast<PluginUpdateInfo*>(_ui.getLParamFromIndex(static_cast<int>(index))); }
+	PluginUpdateInfo* findPluginInfoFromFolderName(const std::wstring& folderName, int& index) const;
+	bool removeFromListIndex(size_t index2remove);
+	bool hideFromListIndex(size_t index2hide);
+	bool removeFromFolderName(const std::wstring& folderName);
+	bool removeFromUiIndex(size_t index2remove);
+	bool hideFromPluginInfoPtr(PluginUpdateInfo* pluginInfo2hide);
+	bool restore(const std::wstring& folderName);
+	bool removeFromPluginInfoPtr(PluginUpdateInfo* pluginInfo2hide);
+	void changeColumnName(COLUMN_TYPE index, const wchar_t *name2change);
+
+private:
+	// _list & _ui should keep being synchronized
+	std::vector<PluginUpdateInfo*> _list;
+	ListView _ui;
+
+	SORT_TYPE _sortType = DISPLAY_NAME_ALPHABET_ENCREASE;
+};
+
+enum LIST_TYPE { AVAILABLE_LIST, UPDATES_LIST, INSTALLED_LIST, INCOMPATIBLE_LIST, DISABLED_LIST };
+
 
 class PluginsAdminDlg final : public StaticDialog
 {
 public :
-	PluginsAdminDlg() {};
-	~PluginsAdminDlg() {
-		_availableListView.destroy();
-		_updateListView.destroy();
-		_installedListView.destroy();
-		if (_pPluginsXmlDoc) delete _pPluginsXmlDoc;
+	PluginsAdminDlg();
+
+	void create(int dialogID, bool isRTL = false, bool msgDestParent = true, WORD fontSize = 0, const std::wstring& fontFace = L"") override;
+
+	void doDialog(bool isRTL = false) {
+		if (!isCreated())
+		{
+			const auto dpiContext = DPIManagerV2::setThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+			PluginsAdminDlg::create(IDD_PLUGINSADMIN_DLG, isRTL);
+			DPIManagerV2::setThreadDpiAwarenessContext(dpiContext);
+		}
+		display();
 	}
-    void init(HINSTANCE hInst, HWND parent)	{
-        Window::init(hInst, parent);
-	};
 
-	virtual void create(int dialogID, bool isRTL = false);
-
-    void doDialog(bool isRTL = false) {
-    	if (!isCreated())
-		{
-			create(IDD_PLUGINSADMIN_DLG, isRTL);
-		}
-
-		if (!::IsWindowVisible(_hSelf))
-		{
-
-		}
-	    display();
-    };
+	bool initFromJson();
 
 	void switchDialog(int indexToSwitch);
+	void setPluginsManager(PluginsManager* pluginsManager) { _pPluginsManager = pluginsManager; }
 
-	bool downloadPluginList(); // call GitUup for the 1st time
-	bool loadFomList();
-	void setPluginsManager(PluginsManager *pluginsManager) { _pPluginsManager = pluginsManager; };
-	void setAdminMode(bool isAdm) { _nppCurrentStatus._isAdminMode = isAdm; };
+	bool updateList();
+	void setAdminMode(bool isAdm) { _nppCurrentStatus._isAdminMode = isAdm; }
+
+	enum Operation {
+		pa_install = 0,
+		pa_update = 1,
+		pa_remove = 2,
+		pa_deactivate = 3,
+		pa_activate = 4
+	};
 
 	bool installPlugins();
 	bool updatePlugins();
-	bool removePlugins();
+	bool removePlugins(int iTab);
+	bool enableOrDisablePlugins(Operation op);
+
+	void changeTabName(LIST_TYPE index, wchar_t* name2change);
+	void changeColumnName(COLUMN_TYPE index, const wchar_t *name2change);
+	std::wstring getPluginListVerStr() const;
+	const PluginViewList& getAvailablePluginUpdateInfoList() const {
+		return _availableList;
+	}
+	
+	PluginViewList& getIncompatibleList() {
+		return _incompatibleList;
+	}
+
+	PluginViewList& getDisabledList() {
+		return _disabledList;
+	}
 
 protected:
-	virtual INT_PTR CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam);
+	intptr_t CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 
 private :
+	std::wstring _updaterDir;
+	std::wstring _updaterFullPath;
+	std::wstring _pluginListFullPath;
+
 	TabBar _tab;
 
-	ListView _availableListView;
-	ListView _updateListView;
-	ListView _installedListView;
-	std::vector<PluginUpdateInfo> _availablePluginList;
-	std::vector<PluginUpdateInfo> _updatePluginList;
-	std::vector<PluginUpdateInfo> _installedPluginList;
+	std::wstring _pluginListVersion;
+	URLCtrl _repoLink;
 
-	TiXmlDocument *_pPluginsXmlDoc = nullptr;
+	PluginViewList _availableList;    // A permanent list, once it's loaded (no removal - only hide or show) 
+	PluginViewList _updateList;       // A dynamical list, items are removable
+	PluginViewList _installedList;    // A dynamical list, items are removable
+	PluginViewList _incompatibleList; // A permanent list, once it's loaded (no removal - only hide or show) 
+	PluginViewList _disabledList;     // A dynamical list, items are removable - deactivated plugins,
+	                                   // scanned from the "disabled" subfolder of the plugins root dir
+
 	PluginsManager *_pPluginsManager = nullptr;
-
-	std::vector<LoadedPluginInfo> _loadedPluginInfos;
-
 	NppCurrentStatus _nppCurrentStatus;
 
 	void collectNppCurrentStatusInfos();
-	bool readFromXml();
 	bool searchInPlugins(bool isNextMode) const;
-	const bool inNames = true;
-	const bool inDescs = false;
-	long searchFromCurrentSel(generic_string str2search, bool inWhichPart, bool isNextMode) const;
-	long searchInNamesFromCurrentSel(generic_string str2search, bool isNextMode) const {
-		return searchFromCurrentSel(str2search, inNames, isNextMode);
-	};
-	long searchInDescsFromCurrentSel(generic_string str2search, bool isNextMode) const {
-		return searchFromCurrentSel(str2search, inDescs, isNextMode);
-	};
-	bool getLoadedPluginInfos();
-};
+	const bool _inNames = true;
+	const bool _inDescs = false;
+	bool isFoundInListFromIndex(const PluginViewList& inWhichList,int index, const std::wstring& str2search, bool inWhichPart) const;
+	long searchFromCurrentSel(const PluginViewList& inWhichList, const std::wstring& str2search, bool inWhichPart, bool isNextMode) const;
+	long searchInNamesFromCurrentSel(const PluginViewList& inWhichList, const std::wstring& str2search, bool isNextMode) const {
+		return searchFromCurrentSel(inWhichList, str2search, _inNames, isNextMode);
+	}
 
+	long searchInDescsFromCurrentSel(const PluginViewList& inWhichList, const std::wstring& str2search, bool isNextMode) const {
+		return searchFromCurrentSel(inWhichList, str2search, _inDescs, isNextMode);
+	}
+	
+	bool initAvailablePluginsViewFromList();
+	bool initIncompatiblePluginList();
+	bool initDisabledPluginList();
+	bool loadFromPluginInfos();
+
+	bool exitToInstallRemovePlugins(Operation op, const std::vector<PluginUpdateInfo*>& puis, const std::wstring& customRoot = L"");
+
+	// Handles pa_deactivate / pa_activate: moves plugin folders between "plugins"
+	// and "plugins\disabled" (direction depends on op), then restarts Npp the same
+	// way exitToInstallRemovePlugins() does for install/update/remove.
+	bool exitToDeactivateActivatePlugins(Operation op, const std::vector<PluginUpdateInfo*>& puis);
+};

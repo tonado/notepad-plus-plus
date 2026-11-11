@@ -1,38 +1,35 @@
-// this file is part of docking functionality for Notepad++
+// This file is part of Notepad++ project
 // Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid
-// misunderstandings, we consider an application to constitute a
-// "derivative work" for the purpose of this license if it does any of the
-// following:
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-//
-// Changed something around drawRectangle() (for details see there) to enhance
-// speed and consistency of the drag-rectangle - August 2010, Joern Gruel (jg)
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
+#include "Gripper.h"
+
+#include <windows.h>
 
 #include <stdexcept>
-#include "Gripper.h"
+#include <vector>
+
+#include "Common.h"
+#include "Docking.h"
+#include "DockingCont.h"
 #include "DockingManager.h"
+#include "Notepad_plus_msgs.h"
+#include "NppDarkMode.h"
 #include "Parameters.h"
+#include "dockingResource.h"
 
 using namespace std;
 
@@ -46,12 +43,13 @@ using namespace std;
 
 
 BOOL Gripper::_isRegistered	= FALSE;
+bool Gripper::_isOverlayClassRegistered = false;
 
 static HWND		hWndServer		= NULL;
 static HHOOK	hookMouse		= NULL;
 static HHOOK	hookKeyboard	= NULL;
 
-static LRESULT CALLBACK hookProcMouse(INT nCode, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK hookProcMouse(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0)
     {
@@ -61,10 +59,12 @@ static LRESULT CALLBACK hookProcMouse(INT nCode, WPARAM wParam, LPARAM lParam)
 			case WM_NCMOUSEMOVE:
 				::SendMessage(hWndServer, static_cast<UINT>(wParam), 0, 0);
 				break;
+
 			case WM_LBUTTONUP:
 			case WM_NCLBUTTONUP:
 				::SendMessage(hWndServer, static_cast<UINT>(wParam), 0, 0);
 				return TRUE;
+
 			default:
 				break;
 		}
@@ -72,7 +72,7 @@ static LRESULT CALLBACK hookProcMouse(INT nCode, WPARAM wParam, LPARAM lParam)
 	return ::CallNextHookEx(hookMouse, nCode, wParam, lParam);
 }
 
-static LRESULT CALLBACK hookProcKeyboard(INT nCode, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK hookProcKeyboard(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0)
     {
@@ -86,36 +86,6 @@ static LRESULT CALLBACK hookProcKeyboard(INT nCode, WPARAM wParam, LPARAM lParam
 	return ::CallNextHookEx(hookKeyboard, nCode, wParam, lParam);
 }
 
-Gripper::Gripper()
-{
-	_hInst			= NULL;
-	_hParent		= NULL;
-	_hSelf			= NULL;
-	_pDockMgr		= NULL;
-	_pCont			= NULL;
-
-	_ptOffset.x		= 0;
-	_ptOffset.y		= 0;
-
-	_ptOld.x		= 0;
-	_ptOld.y		= 0;
-	_bPtOldValid		= FALSE;
-
-	_hTab			= NULL;
-	_hTabSource		= NULL;
-	_startMovingFromTab	= FALSE;
-	_iItem			= 0;
-
-	_hdc			= NULL;
-	_hbm			= NULL;
-	_hbrush			= NULL;
-
-	memset(&_rcPrev, 0, sizeof(RECT));
-	memset(&_rcItem, 0, sizeof(RECT));
-	memset(&_tcItem, 0, sizeof(TCITEM));
-	memset(&_dockData, 0, sizeof(tDockMgr));
-}
-
 
 void Gripper::startGrip(DockingCont* pCont, DockingManager* pDockMgr)
 {
@@ -126,7 +96,7 @@ void Gripper::startGrip(DockingCont* pCont, DockingManager* pDockMgr)
 
 	if (!_isRegistered)
 	{
-		WNDCLASS clz;
+		WNDCLASS clz{};
 
 		clz.style = 0;
 		clz.lpfnWndProc = staticWinProc;
@@ -150,7 +120,7 @@ void Gripper::startGrip(DockingCont* pCont, DockingManager* pDockMgr)
 	_hSelf = ::CreateWindowEx(
 					0,
 					MDLG_CLASS_NAME,
-					TEXT(""), 0,
+					L"", 0,
 					CW_USEDEFAULT, CW_USEDEFAULT,
 					CW_USEDEFAULT, CW_USEDEFAULT,
 					NULL,
@@ -172,7 +142,7 @@ LRESULT CALLBACK Gripper::staticWinProc(HWND hwnd, UINT message, WPARAM wParam, 
 	switch (message)
 	{
 		case WM_NCCREATE :
-			pDlgMoving = reinterpret_cast<Gripper *>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams);
+			pDlgMoving = static_cast<Gripper *>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams);
 			pDlgMoving->_hSelf = hwnd;
 			::SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pDlgMoving));
 			return TRUE;
@@ -221,7 +191,7 @@ LRESULT Gripper::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 			POINT			ptBuf		= {0,0};
 
 			::GetCursorPos(&pt);
-			getMousePoints(&pt, &ptBuf);
+			getMousePoints(pt, ptBuf);
 
 			/* erase last drawn rectangle */
 			drawRectangle(NULL);
@@ -251,32 +221,32 @@ LRESULT Gripper::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 
 void Gripper::create()
 {
-	RECT		rc		= {0};
-	POINT		pt		= {0};
+	RECT		rc		= {};
+	POINT		pt		= {};
 
 	// start hooking
 	::SetWindowPos(_pCont->getHSelf(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
 	::SetCapture(_hSelf);
-	winVer ver = (NppParameters::getInstance())->getWinVersion();
-	hookMouse = ::SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC)hookProcMouse, _hInst, 0);
+	winVer ver = (NppParameters::getInstance()).getWinVersion();
+	hookMouse = ::SetWindowsHookEx(WH_MOUSE_LL, hookProcMouse, _hInst, 0);
 
     if (!hookMouse)
     {
         DWORD dwError = ::GetLastError();
-        TCHAR  str[128];
-        ::wsprintf(str, TEXT("GetLastError() returned %lu"), dwError);
-        ::MessageBox(NULL, str, TEXT("SetWindowsHookEx(MOUSE) failed on Gripper::create()"), MB_OK | MB_ICONERROR);
+        wchar_t  str[128];
+        ::wsprintf(str, L"GetLastError() returned %lu", dwError);
+		NppDarkMode::darkMessageBoxW(nullptr, str, L"SetWindowsHookEx(MOUSE) failed on Gripper::create()", MB_OK | MB_ICONERROR);
     }
 
 	if (ver != WV_UNKNOWN && ver < WV_VISTA)
 	{
-		hookKeyboard = ::SetWindowsHookEx(WH_KEYBOARD_LL, (HOOKPROC)hookProcKeyboard, _hInst, 0);
+		hookKeyboard = ::SetWindowsHookEx(WH_KEYBOARD_LL, hookProcKeyboard, _hInst, 0);
 		if (!hookKeyboard)
 		{
 			DWORD dwError = ::GetLastError();
-			TCHAR  str[128];
-			::wsprintf(str, TEXT("GetLastError() returned %lu"), dwError);
-			::MessageBox(NULL, str, TEXT("SetWindowsHookEx(KEYBOARD) failed on Gripper::create()"), MB_OK | MB_ICONERROR);
+			wchar_t  str[128];
+			::wsprintf(str, L"GetLastError() returned %lu", dwError);
+			NppDarkMode::darkMessageBoxW(nullptr, str, L"SetWindowsHookEx(KEYBOARD) failed on Gripper::create()", MB_OK | MB_ICONERROR);
 		}
 	}
 //  Removed regarding W9x systems
@@ -285,7 +255,7 @@ void Gripper::create()
 	// calculate the mouse pt within dialog
 	::GetCursorPos(&pt);
 
-	// get tab informations
+	// get tab information
 	initTabInformation();
 
 	if (_pCont->isFloating() == true)
@@ -309,7 +279,7 @@ void Gripper::onMove()
 	POINT		ptBuf	= {0,0};
 
 	::GetCursorPos(&pt);
-	getMousePoints(&pt, &ptBuf);
+	getMousePoints(pt, ptBuf);
 
 	/* tab reordering only when tab was selected */
 	if (_startMovingFromTab == TRUE)
@@ -325,11 +295,11 @@ void Gripper::onButtonUp()
 {
 	POINT			pt			= {0,0};
 	POINT			ptBuf		= {0,0};
-	RECT			rc			= {0};
-	RECT			rcCorr		= {0};
+	RECT			rc			= {};
+	RECT			rcCorr		= {};
 
 	::GetCursorPos(&pt);
-	getMousePoints(&pt, &ptBuf);
+	getMousePoints(pt, ptBuf);
 
 	// do nothing, when old point is not valid
 	if (_bPtOldValid == FALSE)
@@ -371,13 +341,13 @@ void Gripper::onButtonUp()
 			if ((!_pCont->isFloating()) ||
 				((_pCont->isFloating()) && (::SendMessage(_hTabSource, TCM_GETITEMCOUNT, 0, 0) > 1)))
 			{
-				pContMove = _pDockMgr->toggleActiveTb(_pCont, DMM_FLOAT, TRUE, &rc);
+				pContMove = _pDockMgr->toggleActiveWidget(_pCont, DMM_FLOAT, TRUE, &rc);
 			}
 		}
 		else if (!_pCont->isFloating())
 		{
 			/* when all windows are moved */
-			pContMove = _pDockMgr->toggleVisTb(_pCont, DMM_FLOAT, &rc);
+			pContMove = _pDockMgr->toggleVisWidget(_pCont, DMM_FLOAT, &rc);
 		}
 
 		/* set moving container */
@@ -396,12 +366,12 @@ void Gripper::onButtonUp()
 		if ((_startMovingFromTab == TRUE) && (::SendMessage(_hTabSource, TCM_GETITEMCOUNT, 0, 0) != 1))
 		{
 			/* when tab is moved */
-			_pDockMgr->toggleActiveTb(_pCont, pDockCont);
+			_pDockMgr->toggleActiveWidget(_pCont, pDockCont);
 		}
 		else
 		{
 			/* when all windows are moved */
-			_pDockMgr->toggleVisTb(_pCont, pDockCont);
+			_pDockMgr->toggleVisWidget(_pCont, pDockCont);
 		}
 	}
 }
@@ -423,14 +393,14 @@ void Gripper::doTabReordering(POINT pt)
 		/* search only if container is visible */
 		if (::IsWindowVisible(hTab) == TRUE)
 		{
-			RECT	rc		= {0};
+			RECT	rc		= {};
 
 			::GetWindowRect(hTab, &rc);
 
 			/* test if cursor points in tab window */
 			if (::PtInRect(&rc, pt) == TRUE)
 			{
-				TCHITTESTINFO	info	= {0};
+				TCHITTESTINFO	info	= {};
 
 				if (_hTab == NULL)
 				{
@@ -455,7 +425,7 @@ void Gripper::doTabReordering(POINT pt)
 						return;
 					}
 
-					_iItem = static_cast<int32_t>(iItem);
+					_iItem = static_cast<int>(iItem);
 				}
 				else if (_hTab && ((hTab != _hTab) || (_iItem == -1)))
 				{
@@ -465,7 +435,7 @@ void Gripper::doTabReordering(POINT pt)
 					::SendMessage(hTab, TCM_GETITEMRECT, iLastItem, reinterpret_cast<LPARAM>(&rc));
 					if ((rc.left + rc.right) < pt.x)
 					{
-						_iItem = static_cast<int32_t>(iLastItem) + 1;
+						_iItem = static_cast<int>(iLastItem) + 1;
 					}
 				}
 
@@ -485,7 +455,7 @@ void Gripper::doTabReordering(POINT pt)
 			auto iSel = ::SendMessage(_hTab, TCM_GETCURSEL, 0, 0);
 			::SendMessage(_hTab, TCM_DELETEITEM, iSel, 0);
 		}
-		else if (_hTab == hTabOld)
+		else if (_hTab && _hTab == hTabOld)
 		{
 			// delete item on switch between tabs
 			::SendMessage(_hTab, TCM_DELETEITEM, iItemOld, 0);
@@ -508,68 +478,133 @@ void Gripper::doTabReordering(POINT pt)
 	}
 
 	// select the tab only in source tab window
-	if ((_hTab == _hTabSource) && (_iItem != -1))
+	if ((_hTab != nullptr && _hTab == _hTabSource) && (_iItem != -1))
 	{
 		::SendMessage(_hTab, TCM_SETCURSEL, _iItem, 0);
 	}
 
 #if 0
 	extern HWND g_hMainWnd;
-	TCHAR str[128];
-	wsprintf(str, TEXT("Size: %i"), vCont.size());
+	wchar_t str[128];
+	wsprintf(str, L"Size: %i", vCont.size());
 	::SetWindowText(g_hMainWnd, str);
 #endif
 
 	::UpdateWindow(_hParent);
 }
 
-// Changed behaviour (jg): Now this function handles erasing of drag-rectangles and drawing of
-// new ones within one drawing step to the desktop. This is against flickering, but also it is
-// necessary for the Vista Aero style - because in this case the control is given so much to
-// the graphics driver, that accesses (especially read accesses) to the desktop window become
-// too expensive to access it more than absolutely necessary. Besides, usage of the function
-// ::LockWindowUpdate() was added, because with often redrawn windows in the background we had
-// inconsistencies while erasing our drag-rectangle (because it could already have been erased
-// on some places).
+// ============================================================================
+// Overlay window for drag rectangle rendering (tk)
 //
-// Parameter pPt==NULL says that only erasing is wanted and the drag-rectangle is no more needed,
-// thatswhy this also leads to a call of ::LockWindowUpdate(NULL) to enable drawing by others again.
-// The previously drawn rectangle is memoried within _rectPrev (and _bPtOldValid says if it already
-// is valid - did not change this members name because didn't want change too much at once).
+// Uses a layered window spanning the entire virtual screen with color-key
+// transparency (magenta). The drag rectangle is drawn to a memory DC and
+// blitted to the overlay - only the rectangle frame is visible.
 //
-// I was too lazy to always draw four rectangles for the four edges of the drag-rectangle - it seems
-// that drawing an outer rectangle first and then erasing the inner stuff by drawing a second,
-// smaller rectangle inside seems to be not slower - wich comes not unawaited, because it is mostly
-// hardware-driven and each single draw has its own fixed costs.
+// Coordinates: Screen coordinates are translated to overlay-local by
+// subtracting the virtual screen origin (SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN).
+// ============================================================================
+
+static constexpr COLORREF clrMagenta = RGB(255, 0, 255);
+
+LRESULT CALLBACK Gripper::overlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	return ::DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+bool Gripper::createOverlayWindow()
+{
+	if (_hOverlayWnd)
+		return true;
+
+	if (!_isOverlayClassRegistered)
+	{
+		WNDCLASSEX wc = {};
+		wc.cbSize = sizeof(wc);
+		wc.lpfnWndProc = overlayWndProc;
+		wc.hInstance = _hInst;
+		wc.lpszClassName = L"NppGripperOverlay";
+
+		if (!::RegisterClassEx(&wc))
+			return false;
+
+		_isOverlayClassRegistered = true;
+	}
+
+	_xVirtScreen = ::GetSystemMetrics(SM_XVIRTUALSCREEN);
+	_yVirtScreen = ::GetSystemMetrics(SM_YVIRTUALSCREEN);
+	_overlayWidth = ::GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	_overlayHeight = ::GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+	_hOverlayWnd = ::CreateWindowEx(
+		WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT,
+		L"NppGripperOverlay",
+		L"",
+		WS_POPUP,
+		_xVirtScreen, _yVirtScreen, _overlayWidth, _overlayHeight,
+		nullptr, nullptr, _hInst, nullptr
+	);
+
+	if (!_hOverlayWnd)
+		return false;
+
+	::SetLayeredWindowAttributes(_hOverlayWnd, clrMagenta, 0, LWA_COLORKEY);
+
+	HDC hdcScreen = ::GetDC(nullptr);
+	_hdcOverlayMem = ::CreateCompatibleDC(hdcScreen);
+	_hBitmapOverlay = ::CreateCompatibleBitmap(hdcScreen, _overlayWidth, _overlayHeight);
+	_hOldBitmap = static_cast<HBITMAP>(::SelectObject(_hdcOverlayMem, _hBitmapOverlay));
+	::ReleaseDC(nullptr, hdcScreen);
+
+	// Fill with transparent color
+	HBRUSH hBrushTransparent = ::CreateSolidBrush(clrMagenta);
+	RECT rcFill = { 0, 0, _overlayWidth, _overlayHeight };
+	::FillRect(_hdcOverlayMem, &rcFill, hBrushTransparent);
+	::DeleteObject(hBrushTransparent);
+
+	_hdcOverlay = ::GetDC(_hOverlayWnd);
+
+	::ShowWindow(_hOverlayWnd, SW_SHOWNOACTIVATE);
+	::BitBlt(_hdcOverlay, 0, 0, _overlayWidth, _overlayHeight, _hdcOverlayMem, 0, 0, SRCCOPY);
+
+	return true;
+}
+
+void Gripper::destroyOverlayWindow()
+{
+	if (_hdcOverlay && _hOverlayWnd)
+	{
+		::ReleaseDC(_hOverlayWnd, _hdcOverlay);
+		_hdcOverlay = nullptr;
+	}
+	if (_hdcOverlayMem)
+	{
+		if (_hOldBitmap)
+			::SelectObject(_hdcOverlayMem, _hOldBitmap);
+		::DeleteDC(_hdcOverlayMem);
+		_hdcOverlayMem = nullptr;
+		_hOldBitmap = nullptr;
+	}
+	if (_hBitmapOverlay)
+	{
+		::DeleteObject(_hBitmapOverlay);
+		_hBitmapOverlay = nullptr;
+	}
+	if (_hOverlayWnd)
+	{
+		::DestroyWindow(_hOverlayWnd);
+		_hOverlayWnd = nullptr;
+	}
+}
+
+// Draw drag rectangle using layered overlay window
 //
-// For further solutions I think we should leave this classic way of dragging and better use
-// alpha-blending and always move the whole content of the toolbars - so we could leave the
-// ::LockWindowUpdate() behind us.
-//
-// Besides, while debugging into the dragging process please let the ::LockWindowUpdate() out,
-// by #undef the USE_LOCKWINDOWUPDATE in gripper.h, because it works for your debugging window
-// as well, of course. Or just try by this #define what difference it makes.
+// Uses overlay window approach to fix clipping issues on multi-monitor setups
+// where the virtual screen has negative coordinates (Issue #16805).
 //
 void Gripper::drawRectangle(const POINT* pPt)
 {
-	HBRUSH hbrushOrig= NULL;
-	HBITMAP hbmOrig  = NULL;
-	RECT   rc	 = {0};
-	RECT   rcNew	 = {0};
-	RECT   rcOld	 = _rcPrev;
-
-	// Get a screen device context with backstage redrawing disabled - to have a consistently
-	// and stable drawn rectangle while floating - keep in mind, that we must ensure, that
-	// finally ::LockWindowUpdate(NULL) will be called, to enable drawing for others again.
-	if (!_hdc)
-	{
-		HWND hWnd= ::GetDesktopWindow();
-		#if defined (USE_LOCKWINDOWUPDATE)
-		_hdc= ::GetDCEx(hWnd, NULL, ::LockWindowUpdate(hWnd) ? DCX_WINDOW|DCX_CACHE|DCX_LOCKWINDOWUPDATE : DCX_WINDOW|DCX_CACHE);
-		#else
-		_hdc= ::GetDCEx(hWnd, NULL, DCX_WINDOW|DCX_CACHE);
-		#endif
-	}
+	RECT   rcNew = {};
+	RECT   rcOld = _rcPrev;
 
 	// Create a brush with the appropriate bitmap pattern to draw our drag rectangle
 	if (!_hbm)
@@ -579,101 +614,119 @@ void Gripper::drawRectangle(const POINT* pPt)
 
 	if (pPt != NULL)
 	{
-		// Determine whether to draw a solid drag rectangle or checkered
-		// ???(jg) solid or checked ??? - must have been an old comment, I didn't
-		// find here this difference, but at least it's a question of drag-rects size
-		//
+		// getMovingRect() returns rect where right/bottom = width/height (not coordinates)
 		getMovingRect(*pPt, &rcNew);
-		_rcPrev= rcNew;		// save the new drawn rcNew
-
-		// note that from here for handling purposes the right and bottom values of the rects
-		// contain width and height - its handsome, but i find it dangerous, but didn't want to
-		// change that already this time.
+		_rcPrev = rcNew;
 
 		if (_bPtOldValid)
 		{
-			// okay, there already a drag-rect has been drawn - and its position
-			// had been saved within the rectangle _rectPrev, wich already had been
-			// copied into rcOld in the beginning, and a new drag position
-			// is available, too.
-			// If now rcOld and rcNew are the same, just stop further handling to not
-			// draw the same drag-rectangle twice (this really happens, it should be
-			// better avoided anywhere earlier)
-			//
-			if (rcOld.left==rcNew.left && rcOld.right==rcNew.right && rcOld.top== rcNew.top && rcOld.bottom==rcNew.bottom)
+			if (rcOld.left == rcNew.left && rcOld.right == rcNew.right &&
+			    rcOld.top == rcNew.top && rcOld.bottom == rcNew.bottom)
 				return;
-
-			rc.left   = min(rcOld.left, rcNew.left);
-			rc.top    = min(rcOld.top,  rcNew.top);
-			rc.right  = max(rcOld.left + rcOld.right,  rcNew.left + rcNew.right);
-			rc.bottom = max(rcOld.top  + rcOld.bottom, rcNew.top  + rcNew.bottom);
-			rc.right -= rc.left;
-			rc.bottom-= rc.top;
 		}
-		else	rc= rcNew;	// only new rect will be drawn
 	}
-	else	rc= rcOld;	// only old rect will be drawn - to erase it
 
-	// now rc contains the rectangle wich encloses all needed, new and/or previous rectangle
-	// because in the following we drive within a memory device context wich is limited to rc,
-	// we have to localize rcNew and rcOld within rc...
-	//
-	rcOld.left= rcOld.left - rc.left;
-	rcOld.top = rcOld.top  - rc.top;
-	rcNew.left= rcNew.left - rc.left;
-	rcNew.top = rcNew.top  - rc.top;
+	// Create overlay window on first draw
+	if (!_hOverlayWnd)
+	{
+		if (!createOverlayWindow())
+			return;
+	}
 
-	HDC hdcMem= ::CreateCompatibleDC(_hdc);
-	HBITMAP hBm= ::CreateCompatibleBitmap(_hdc, rc.right, rc.bottom);
-	hbrushOrig= (HBRUSH)::SelectObject(hdcMem, hBm);
+	// Save absolute coordinates before any modifications
+	RECT rcOldAbsolute = rcOld;
+	RECT rcNewAbsolute = rcNew;
 
-	::SetBrushOrgEx(hdcMem, rc.left%8, rc.top%8, 0);
-	hbmOrig= (HBITMAP)::SelectObject(hdcMem, _hbrush);
+	// Calculate overlay-local coordinates
+	LONG newOverlayX = rcNewAbsolute.left - _xVirtScreen;
+	LONG newOverlayY = rcNewAbsolute.top - _yVirtScreen;
+	LONG newWidth = rcNewAbsolute.right;
+	LONG newHeight = rcNewAbsolute.bottom;
 
-	::BitBlt(hdcMem, 0, 0, rc.right, rc.bottom, _hdc, rc.left, rc.top, SRCCOPY);
+	// Erase old rectangle
 	if (_bPtOldValid)
-	{	// erase the old drag-rectangle
-		::PatBlt(hdcMem, rcOld.left  , rcOld.top  , rcOld.right  , rcOld.bottom  , PATINVERT);
-		::PatBlt(hdcMem, rcOld.left+3, rcOld.top+3, rcOld.right-6, rcOld.bottom-6, PATINVERT);
+	{
+		HBRUSH hBrushTransparent = ::CreateSolidBrush(clrMagenta);
+		LONG oldOverlayX = rcOldAbsolute.left - _xVirtScreen;
+		LONG oldOverlayY = rcOldAbsolute.top - _yVirtScreen;
+		LONG oldWidth = rcOldAbsolute.right;
+		LONG oldHeight = rcOldAbsolute.bottom;
+		RECT rcClear = { oldOverlayX, oldOverlayY, oldOverlayX + oldWidth, oldOverlayY + oldHeight };
+		::FillRect(_hdcOverlayMem, &rcClear, hBrushTransparent);
+		::DeleteObject(hBrushTransparent);
 	}
-	if (pPt != NULL)
-	{	// draw the new drag-rectangle
-		::PatBlt(hdcMem, rcNew.left  , rcNew.top  , rcNew.right  , rcNew.bottom  , PATINVERT);
-		::PatBlt(hdcMem, rcNew.left+3, rcNew.top+3, rcNew.right-6, rcNew.bottom-6, PATINVERT);
-	}
-	::BitBlt(_hdc, rc.left, rc.top, rc.right, rc.bottom, hdcMem, 0, 0, SRCCOPY);
 
-	SelectObject(hdcMem, hbrushOrig);
-	SelectObject(hdcMem, hbmOrig);
-	DeleteObject(hBm);
-	DeleteDC(hdcMem);
+	// Draw new rectangle
+	if (pPt != NULL)
+	{
+		HBRUSH hBrushTransparent = ::CreateSolidBrush(clrMagenta);
+		RECT rcFrame = { newOverlayX, newOverlayY, newOverlayX + newWidth, newOverlayY + newHeight };
+		::FillRect(_hdcOverlayMem, &rcFrame, hBrushTransparent);
+		::DeleteObject(hBrushTransparent);
+
+		HBRUSH hBrushGray = ::CreateSolidBrush(RGB(128, 128, 128));
+		RECT rcTop = { newOverlayX, newOverlayY, newOverlayX + newWidth, newOverlayY + 3 };
+		::FillRect(_hdcOverlayMem, &rcTop, hBrushGray);
+		RECT rcBottom = { newOverlayX, newOverlayY + newHeight - 3, newOverlayX + newWidth, newOverlayY + newHeight };
+		::FillRect(_hdcOverlayMem, &rcBottom, hBrushGray);
+		RECT rcLeft = { newOverlayX, newOverlayY, newOverlayX + 3, newOverlayY + newHeight };
+		::FillRect(_hdcOverlayMem, &rcLeft, hBrushGray);
+		RECT rcRight = { newOverlayX + newWidth - 3, newOverlayY, newOverlayX + newWidth, newOverlayY + newHeight };
+		::FillRect(_hdcOverlayMem, &rcRight, hBrushGray);
+		::DeleteObject(hBrushGray);
+
+		HBRUSH hOldBrush = static_cast<HBRUSH>(::SelectObject(_hdcOverlayMem, _hbrush));
+		::SetBrushOrgEx(_hdcOverlayMem, rcNewAbsolute.left % 8, rcNewAbsolute.top % 8, nullptr);
+		::PatBlt(_hdcOverlayMem, newOverlayX, newOverlayY, newWidth, 3, PATINVERT);
+		::PatBlt(_hdcOverlayMem, newOverlayX, newOverlayY + newHeight - 3, newWidth, 3, PATINVERT);
+		::PatBlt(_hdcOverlayMem, newOverlayX, newOverlayY, 3, newHeight, PATINVERT);
+		::PatBlt(_hdcOverlayMem, newOverlayX + newWidth - 3, newOverlayY, 3, newHeight, PATINVERT);
+		::SelectObject(_hdcOverlayMem, hOldBrush);
+	}
+
+	// Copy to overlay window (only changed region for performance)
+	LONG copyMinX = newOverlayX;
+	LONG copyMinY = newOverlayY;
+	LONG copyMaxX = newOverlayX + newWidth;
+	LONG copyMaxY = newOverlayY + newHeight;
+
+	if (_bPtOldValid)
+	{
+		LONG oldOverlayX = rcOldAbsolute.left - _xVirtScreen;
+		LONG oldOverlayY = rcOldAbsolute.top - _yVirtScreen;
+		LONG oldWidth = rcOldAbsolute.right;
+		LONG oldHeight = rcOldAbsolute.bottom;
+
+		if (oldOverlayX < copyMinX) copyMinX = oldOverlayX;
+		if (oldOverlayY < copyMinY) copyMinY = oldOverlayY;
+		if (oldOverlayX + oldWidth > copyMaxX) copyMaxX = oldOverlayX + oldWidth;
+		if (oldOverlayY + oldHeight > copyMaxY) copyMaxY = oldOverlayY + oldHeight;
+	}
+
+	::BitBlt(_hdcOverlay, copyMinX, copyMinY, copyMaxX - copyMinX, copyMaxY - copyMinY,
+		_hdcOverlayMem, copyMinX, copyMinY, SRCCOPY);
 
 	if (pPt == NULL)
 	{
-		#if defined(USE_LOCKWINDOWUPDATE)
-		::LockWindowUpdate(NULL);
-		#endif
-		_bPtOldValid= FALSE;
-		if (_hdc)
-		{
-			::ReleaseDC(0, _hdc);
-			_hdc= NULL;
-		}
+		destroyOverlayWindow();
+		_bPtOldValid = FALSE;
 	}
-	else	_bPtOldValid= TRUE;
+	else
+	{
+		_bPtOldValid = TRUE;
+	}
 }
 
-
-void Gripper::getMousePoints(POINT* pt, POINT* ptPrev)
+void Gripper::getMousePoints(const POINT& pt, POINT& ptPrev)
 {
-	*ptPrev	= _ptOld;
-	_ptOld	= *pt;
+	ptPrev	= _ptOld;
+	_ptOld	= pt;
 }
 
 
 void Gripper::getMovingRect(POINT pt, RECT *rc)
 {
-	RECT			rcCorr			= {0};
+	RECT			rcCorr			= {};
 	DockingCont*	pContHit		= NULL;
 
 	/* test if mouse hits a container */
@@ -736,7 +789,7 @@ DockingCont* Gripper::contHitTest(POINT pt)
 		{
 			if (vCont[iCont]->isFloating())
 			{
-				RECT	rc	= {0};
+				RECT	rc	= {};
 
 				vCont[iCont]->getWindowRect(rc);
 				if ((rc.top < pt.y) && (pt.y < (rc.top + 24)))
@@ -762,7 +815,7 @@ DockingCont* Gripper::contHitTest(POINT pt)
 		if (::IsWindowVisible(vCont[iCont]->getTabWnd()))
 		{
 			/* test if within tab (rect test is used, because of drag and drop behaviour) */
-			RECT		rc	= {0};
+			RECT		rc	= {};
 
 			::GetWindowRect(vCont[iCont]->getTabWnd(), &rc);
 			if (::PtInRect(&rc, pt))
@@ -779,7 +832,7 @@ DockingCont* Gripper::contHitTest(POINT pt)
 
 DockingCont* Gripper::workHitTest(POINT pt, RECT *rc)
 {
-	RECT					rcCont	= {0};
+	RECT					rcCont	= {};
 	vector<DockingCont*>	vCont	= _pDockMgr->getContainerInfo();
 
 	/* at first test if cursor points into a visible container */
@@ -833,13 +886,13 @@ DockingCont* Gripper::workHitTest(POINT pt, RECT *rc)
 				default:
 					break;
 			}
-			ClientRectToScreenRect(_dockData.hWnd, &rcCont);
+			::MapWindowPoints(_dockData.hWnd, nullptr, reinterpret_cast<LPPOINT>(&rcCont), 2);
 
 			if (::PtInRect(&rcCont, pt) == TRUE)
 			{
-				if (rc != NULL)
+				if (rc != nullptr)
 				{
-					ClientRectToScreenRect(_dockData.hWnd, rc);
+					::MapWindowPoints(_dockData.hWnd, nullptr, reinterpret_cast<LPPOINT>(rc), 2);
 					rc->right  -= rc->left;
 					rc->bottom -= rc->top;
 				}
@@ -849,7 +902,7 @@ DockingCont* Gripper::workHitTest(POINT pt, RECT *rc)
 	}
 
 	/* no docking area found */
-	return NULL;
+	return nullptr;
 }
 
 
@@ -868,7 +921,7 @@ void Gripper::initTabInformation()
 	else
 	{
 		// get active tab item
-		_iItem = static_cast<int32_t>(::SendMessage(_hTabSource, TCM_GETCURSEL, 0, 0));
+		_iItem = static_cast<int>(::SendMessage(_hTabSource, TCM_GETCURSEL, 0, 0));
 	}
 
 	/* get size of item */
@@ -876,10 +929,9 @@ void Gripper::initTabInformation()
 	::SendMessage(_hTabSource, TCM_GETITEMRECT, _iItem, reinterpret_cast<LPARAM>(&_rcItem));
 
 	/* store item data */
-	static TCHAR	szText[64];
+	static wchar_t	szText[64];
 	_tcItem.mask		= TCIF_PARAM | TCIF_TEXT;
 	_tcItem.pszText		= szText;
 	_tcItem.cchTextMax	= 64;
 	::SendMessage(_hTabSource, TCM_GETITEM, _iItem, reinterpret_cast<LPARAM>(&_tcItem));
 }
-

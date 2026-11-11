@@ -1,57 +1,37 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#pragma once
 
-#ifndef FUNCLISTPANEL_H
-#define FUNCLISTPANEL_H
-
-//#include <windows.h>
-#ifndef DOCKINGDLGINTERFACE_H
 #include "DockingDlgInterface.h"
-#endif //DOCKINGDLGINTERFACE_H
-
 #include "functionListPanel_rc.h"
 #include "functionParser.h"
 #include "TreeView.h"
 
-#define FL_PANELTITLE     TEXT("Function List")
-#define FL_SORTTIP        TEXT("sort")
-#define FL_RELOADTIP      TEXT("Reload")
+#define FL_PANELTITLE     L"Function List"
+#define FL_FUNCTIONLISTROOTNODE "FunctionList"
 
-#define FL_FUCTIONLISTROOTNODE "FunctionList"
-#define FL_SORTLOCALNODENAME   "SortTip"
-#define FL_RELOADLOCALNODENAME "ReloadTip"
+#define FL_SORTLOCALNODENAME        "SortTip"
+#define FL_RELOADLOCALNODENAME      "ReloadTip"
+#define FL_PREFERENCESLOCALNODENAME "PreferencesTip"
+
+#define FL_PREFERENCE_INITIALSORT "PreferencesInitialSort"
 
 class ScintillaEditView;
 
-struct FuncInfo {
-	generic_string _displayText;
-	size_t _offsetPos;
-};
 /*
 1. global function + object + methods: Tree view of 2 levels - only the leaf contains the position info
 root
@@ -75,15 +55,12 @@ root
 */
 
 struct SearchParameters {
-	generic_string _text2Find;
-	bool _doSort;
+	std::wstring _text2Find;
+	bool _doSort = false;
 
-	SearchParameters(): _text2Find(TEXT("")), _doSort(false){
-	};
-
-	bool hasParams()const{
-		return (_text2Find != TEXT("") || _doSort);
-	};
+	bool hasParams() const {
+		return (_text2Find != L"" || _doSort);
+	}
 };
 
 struct TreeParams {
@@ -93,65 +70,76 @@ struct TreeParams {
 
 class FunctionListPanel : public DockingDlgInterface {
 public:
-	FunctionListPanel(): DockingDlgInterface(IDD_FUNCLIST_PANEL), _ppEditView(NULL), _pTreeView(&_treeView),
-	_reloadTipStr(TEXT("Reload")), _sortTipStr(TEXT("Sort")) {};
+	FunctionListPanel(): DockingDlgInterface(IDD_FUNCLIST_PANEL), _pTreeView(&_treeView) {}
+	~FunctionListPanel() override;
 
 	void init(HINSTANCE hInst, HWND hPere, ScintillaEditView **ppEditView);
 
-    virtual void display(bool toShow = true) const {
-        DockingDlgInterface::display(toShow);
-    };
-
-	virtual void setBackgroundColor(COLORREF bgColour) {
+	void setBackgroundColor(COLORREF bgColour) override {
 		TreeView_SetBkColor(_treeView.getHSelf(), bgColour);
 		TreeView_SetBkColor(_treeViewSearchResult.getHSelf(), bgColour);
-    };
-	virtual void setForegroundColor(COLORREF fgColour) {
+	}
+
+	void setForegroundColor(COLORREF fgColour) override {
 		TreeView_SetTextColor(_treeView.getHSelf(), fgColour);
 		TreeView_SetTextColor(_treeViewSearchResult.getHSelf(), fgColour);
-    };
+	}
 
-    void setParent(HWND parent2set){
-        _hParent = parent2set;
-    };
+	void setParent(HWND parent2set){
+		_hParent = parent2set;
+	}
 	
 	// functionalities
+	static int CALLBACK categorySortFunc(LPARAM lParam1, LPARAM lParam2, LPARAM /*lParamSort*/);
 	void sortOrUnsort();
 	void reload();
-	void addEntry(const TCHAR *node, const TCHAR *displayText, size_t pos);
+	void markEntry();
+	bool serialize(const std::wstring & outputFilename = L"");
+	void addEntry(const wchar_t* nodeName, const wchar_t* displayText, size_t pos);
 	void removeAllEntries();
-	void removeEntry();
-	void modifyEntry();
 	void searchFuncAndSwitchView();
 
 protected:
-	virtual INT_PTR CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam);
+	intptr_t CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	HMENU _hPreferencesMenu = NULL;
 
 private:
-	HWND _hToolbarMenu;
-	HWND _hSearchEdit;
+	HWND _hToolbarMenu = nullptr;
+	HWND _hSearchEdit = nullptr;
+	HFONT _hFontSearchEdit = nullptr;
+	std::vector<HIMAGELIST> _iconListVector;
 
-	TreeView *_pTreeView;
+	TreeView *_pTreeView = nullptr;
 	TreeView _treeView;
 	TreeView _treeViewSearchResult;
 
-	generic_string _sortTipStr;
-	generic_string _reloadTipStr;
+	SCROLLINFO si{};
+	long _findLine = -1;
+	long _findEndLine = -1;
+	HTREEITEM _findItem = nullptr;
 
-	ScintillaEditView **_ppEditView;
+	std::wstring _sortTipStr = L"Sort";
+	std::wstring _reloadTipStr = L"Reload";
+	std::wstring _preferenceTipStr = L"Preferences";
+
+	std::vector<foundInfo> _foundFuncInfos;
+
+	std::vector<std::wstring*> _posStrs;
+
+	ScintillaEditView **_ppEditView = nullptr;
 	FunctionParsersManager _funcParserMgr;
-	std::vector<FuncInfo> _funcInfos;
 	std::vector< std::pair<int, int> > _skipZones;
 	std::vector<TreeParams> _treeParams;
-	HIMAGELIST _hTreeViewImaLst;
-	generic_string parseSubLevel(size_t begin, size_t end, std::vector< generic_string > dataToSearch, int & foundPos);
-	size_t getBodyClosePos(size_t begin, const TCHAR *bodyOpenSymbol, const TCHAR *bodyCloseSymbol);
+
+	using DockingDlgInterface::init;
+
 	void notified(LPNMHDR notification);
-	void addInStateArray(TreeStateNode tree2Update, const TCHAR *searchText, bool isSorted);
-	TreeParams* getFromStateArray(generic_string fullFilePath);
-	BOOL setTreeViewImageList(int root_id, int node_id, int leaf_id);
+	void addInStateArray(TreeStateNode tree2Update, const wchar_t *searchText, bool isSorted);
+	TreeParams* getFromStateArray(const std::wstring& fullFilePath);
 	bool openSelection(const TreeView &treeView);
 	bool shouldSort();
 	void setSort(bool isEnabled);
+	void findMarkEntry(HTREEITEM htItem, LONG line);
+	void initPreferencesMenu();
+	void showPreferencesMenu();
 };
-#endif // FUNCLISTPANEL_H

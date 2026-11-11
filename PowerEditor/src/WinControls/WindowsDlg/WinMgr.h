@@ -9,17 +9,18 @@
 //
 // Theo - Heavily modified to remove MFC dependencies
 //        Replaced CWnd*/HWND, CRect/RECT, CSize/SIZE, CPoint/POINT
-#ifndef WINMGR_H
-#define WINMGR_H
+
 
 #pragma once
 
-#include <assert.h>
 #include <windows.h>
 
+#include <algorithm>
+#include <cassert>
+#include <climits>
 
-const SIZE SIZEZERO = {0, 0};
-const SIZE SIZEMAX = {SHRT_MAX, SHRT_MAX};
+inline constexpr SIZE SIZEZERO = { 0, 0 };
+inline constexpr SIZE SIZEMAX = { SHRT_MAX, SHRT_MAX };
 
 inline SIZE GetSize(LONG w, LONG h) { 
 	SIZE sz = {w, h}; return sz; 
@@ -58,11 +59,11 @@ inline RECT &OffsetRect(RECT& rc, POINT pt) {
 
 // handy functions to take the min or max of a SIZE
 inline SIZE minsize(SIZE a, SIZE b) {
-	return GetSize(min(a.cx, b.cx), min(a.cy, b.cy));
+	return GetSize(std::min<LONG>(a.cx, b.cx), std::min<LONG>(a.cy, b.cy));
 }
 
 inline SIZE maxsize(SIZE a, SIZE b) {
-	return GetSize(max(a.cx, b.cx), max(a.cy, b.cy));
+	return GetSize(std::max<LONG>(a.cx, b.cx), std::max<LONG>(a.cy, b.cy));
 }
 
 //////////////////
@@ -109,7 +110,7 @@ protected:
 public:
 	WINRECT(WORD f, int id, LONG p);
 
-	static WINRECT* InitMap(WINRECT* map, WINRECT* parent=NULL);
+	static WINRECT* InitMap(WINRECT* map, const WINRECT* parent=NULL);
 
 	WINRECT* Prev()			{ return prev; }
 	WINRECT* Next()			{ return next; }
@@ -208,15 +209,15 @@ struct NMWINMGR : public NMHDR {
 
 	// each notification code has its own part of union
 	union {
-		SIZEINFO sizeinfo;	// used for GET_SIZEINFO
+		SIZEINFO sizeinfo{};	// used for GET_SIZEINFO
 		struct {					// used for SIZEBAR_MOVED
-			POINT ptMoved;		//  distance moved (x or y = zero)
+			POINT ptMoved{};		//  distance moved (x or y = zero)
 		} sizebar;
 	};
-	BOOL processed;
+	BOOL processed = FALSE;
 
 	// ctor: initialize to zeroes
-	NMWINMGR() { memset(this,0,sizeof(NMWINMGR)); }
+	NMWINMGR() : NMHDR{ nullptr, 0, 0 }, sizeinfo{}, processed(FALSE) {}
 };
 
 ///////////////////
@@ -225,14 +226,14 @@ struct NMWINMGR : public NMHDR {
 //
 class CWinMgr /*: public CObject*/ {
 public:
-	explicit CWinMgr(WINRECT* map);
+	explicit CWinMgr(WINRECT* pWinMap);
 	virtual ~CWinMgr();
 
 	virtual void GetWindowPositions(HWND hWnd); // load map from window posns
 	virtual void SetWindowPositions(HWND hWnd); // set window posns from map
 
 	// get min/max/desired size of a rectangle
-	virtual void OnGetSizeInfo(SIZEINFO& szi, WINRECT* pwrc, HWND hWnd=NULL);
+	virtual void OnGetSizeInfo(SIZEINFO& szi, WINRECT* wrc, HWND hWnd = nullptr);
 
 	// calc layout using client area as total area
 	void CalcLayout(HWND hWnd) {
@@ -274,17 +275,16 @@ public:
 	// set TOFIT size for all windows from current window sizes
 	void InitToFitSizeFromCurrent(HWND hWnd);
 
-	// Theo - Removed Tracing
 
 protected:
-	WINRECT*	m_map;			// THE window map
+	WINRECT*	m_map = nullptr;			// THE window map
 
 	int  CountWindows();
 	BOOL SendGetSizeInfo(SIZEINFO& szi, HWND hWnd, UINT nID);
 
 	// you can override to do wierd stuff or fix bugs
-	virtual void CalcGroup(WINRECT* group, HWND hWnd);
-	virtual void AdjustSize(WINRECT* pEntry, BOOL bRow,
+	virtual void CalcGroup(WINRECT* pGroup, HWND hWnd);
+	virtual void AdjustSize(WINRECT* wrc, BOOL bRow,
 		int& hwRemaining, HWND hWnd);
 	virtual void PositionRects(WINRECT* pGroup,
 		const RECT& rcTotal,BOOL bRow);
@@ -292,6 +292,3 @@ protected:
 private:
 	CWinMgr() { assert(FALSE); } // no default constructor
 };
-
-// Theo - Removed CSizerBar and CSizeableDlg
-#endif

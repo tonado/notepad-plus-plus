@@ -1,37 +1,65 @@
-//this file is part of notepad++
-//Copyright (C)2003 Don HO ( donho@altern.org )
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// This file is part of Notepad++ project
+// Copyright (C)2021 Don HO <don.h@free.fr>
 
-#include "StaticDialog.h"
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
 #include "RunDlg.h"
-#include "FileDialog.h"
+
+#include <windows.h>
+
+#include <strsafe.h>
+
+#include <algorithm>
+#include <cwchar>
+#include <string>
+#include <vector>
+
+#include "Common.h"
+#include "ContextMenu.h"
+#include "CustomFileDialog.h"
 #include "Notepad_plus_msgs.h"
-#include "shortcut.h"
+#include "NppDarkMode.h"
 #include "Parameters.h"
-#include "Notepad_plus.h"
+#include "RunDlg_rc.h"
+#include "StaticDialog.h"
+#include "Window.h"
+#include "dpiManagerV2.h"
+#include "localization.h"
+#include "menuCmdID.h"
+#include "resource.h"
+#include "shortcut.h"
 
+using namespace std;
 
-void Command::extractArgs(TCHAR *cmd2Exec, TCHAR *args, const TCHAR *cmdEntier)
+void Command::extractArgs(wchar_t* cmd2Exec, size_t cmd2ExecLen, wchar_t* args, size_t argsLen, const wchar_t* cmdEntier)
 {
 	size_t i = 0;
 	bool quoted = false;
-	for (size_t len = lstrlen(cmdEntier); i < len ; ++i)
+
+	size_t cmdEntierLen = std::wcslen(cmdEntier);
+
+	size_t shortest = std::min<size_t>(cmd2ExecLen, argsLen);
+
+	if (cmdEntierLen > shortest)
+		cmdEntierLen = shortest - 1;
+
+	for (; i < cmdEntierLen; ++i)
 	{
-		if ((cmdEntier[i] == ' ') && (!quoted))
+		if (cmdEntier[i] == ' ' && !quoted)
 			break;
+
 		if (cmdEntier[i]=='"')
 			quoted = !quoted;
 
@@ -39,12 +67,13 @@ void Command::extractArgs(TCHAR *cmd2Exec, TCHAR *args, const TCHAR *cmdEntier)
 	}
 	cmd2Exec[i] = '\0';
 	
-	if (i < size_t(lstrlen(cmdEntier)))
+	if (i < cmdEntierLen)
 	{
-		for (size_t len = size_t(lstrlen(cmdEntier)); (i < len) && (cmdEntier[i] == ' ') ; ++i);
-		if (i < size_t(lstrlen(cmdEntier)))
+		for (size_t len = cmdEntierLen; (i < len) && (cmdEntier[i] == ' ') ; ++i);
+
+		if (i < cmdEntierLen)
 		{
-			for (size_t k = 0, len2 = size_t(lstrlen(cmdEntier)); i <= len2; ++i, ++k)
+			for (size_t k = 0, len2 = cmdEntierLen; i <= len2; ++i, ++k)
 			{
 				args[k] = cmdEntier[i];
 			}
@@ -56,14 +85,15 @@ void Command::extractArgs(TCHAR *cmd2Exec, TCHAR *args, const TCHAR *cmdEntier)
 			for (l -= 2 ; (l > 0) && (args[l] == ' ') ; l--);
 			args[l+1] = '\0';
 		}
-
 	}
 	else
+	{
 		args[0] = '\0';
+	}
 }
 
 
-int whichVar(TCHAR *str)
+int whichVar(wchar_t *str)
 {
 	if (!lstrcmp(fullCurrentPath, str))
 		return FULL_CURRENT_PATH;
@@ -85,12 +115,13 @@ int whichVar(TCHAR *str)
 		return CURRENT_LINE;
 	else if (!lstrcmp(currentColumn, str))
 		return CURRENT_COLUMN;
+	else if (!lstrcmp(currentLineStr, str))
+		return CURRENT_LINESTR;
 
 	return VAR_NOT_RECOGNIZED;
 }
 
-// Since I'm sure the length will be 256, I won't check the lstrlen : watch out!
-void expandNppEnvironmentStrs(const TCHAR *strSrc, TCHAR *stringDest, size_t strDestLen, HWND hWnd)
+void expandNppEnvironmentStrs(const wchar_t *strSrc, wchar_t *stringDest, size_t strDestLen, HWND hWnd)
 {
 	size_t j = 0;
 	for (int i = 0, len = lstrlen(strSrc); i < len; ++i)
@@ -100,7 +131,7 @@ void expandNppEnvironmentStrs(const TCHAR *strSrc, TCHAR *stringDest, size_t str
 		if ((strSrc[i] == '$') && (strSrc[i+1] == '('))
 		{
 			iBegin = i += 2;
-			for (size_t len2 = size_t(lstrlen(strSrc)); size_t(i) < len2 ; ++i)
+			for (size_t len2 = std::wcslen(strSrc); static_cast<size_t>(i) < len2 ; ++i)
 			{
 				if (strSrc[i] == ')')
 				{
@@ -109,13 +140,14 @@ void expandNppEnvironmentStrs(const TCHAR *strSrc, TCHAR *stringDest, size_t str
 				}
 			}
 		}
+
 		if (iBegin != -1)
 		{
 			if (iEnd != -1)
 			{
-				TCHAR str[MAX_PATH];
+				wchar_t str[MAX_PATH] = { '\0' };
 				int m = 0;
-				for (int k = iBegin  ; k <= iEnd ; ++k)
+				for (int k = iBegin  ; m < MAX_PATH -1 && k <= iEnd ; ++k)
 					str[m++] = strSrc[k];
 				str[m] = '\0';
 
@@ -130,16 +162,17 @@ void expandNppEnvironmentStrs(const TCHAR *strSrc, TCHAR *stringDest, size_t str
 				}
 				else
 				{
-					TCHAR expandedStr[CURRENTWORD_MAXLENGTH];
+					wchar_t expandedStr[CURRENTWORD_MAXLENGTH] = { '\0' };
 					if (internalVar == CURRENT_LINE || internalVar == CURRENT_COLUMN)
 					{
-						auto lineNumber = ::SendMessage(hWnd, RUNCOMMAND_USER + internalVar, 0, 0);
-						wsprintf(expandedStr, TEXT("%d"), lineNumber);
+						size_t lineNumber = ::SendMessage(hWnd, RUNCOMMAND_USER + internalVar, 0, 0);
+						std::wstring lineNumStr = std::to_wstring(lineNumber);
+						StringCchCopyW(expandedStr, CURRENTWORD_MAXLENGTH, lineNumStr.c_str());
 					}
 					else
 						::SendMessage(hWnd, RUNCOMMAND_USER + internalVar, CURRENTWORD_MAXLENGTH, reinterpret_cast<LPARAM>(expandedStr));
 
-					for (size_t p = 0, len3 = size_t(lstrlen(expandedStr)); p < len3; ++p)
+					for (size_t p = 0, len3 = std::wcslen(expandedStr); p < len3; ++p)
 					{
 						if (j < (strDestLen-1))
 							stringDest[j++] = expandedStr[p];
@@ -168,70 +201,191 @@ void expandNppEnvironmentStrs(const TCHAR *strSrc, TCHAR *stringDest, size_t str
 
 HINSTANCE Command::run(HWND hWnd)
 {
-	const int argsIntermediateLen = MAX_PATH*2;
-	const int args2ExecLen = CURRENTWORD_MAXLENGTH+MAX_PATH*2;
+	return run(hWnd, L".");
+}
 
-	TCHAR cmdPure[MAX_PATH];
-	TCHAR cmdIntermediate[MAX_PATH];
-	TCHAR cmd2Exec[MAX_PATH];
-	TCHAR args[MAX_PATH];
-	TCHAR argsIntermediate[argsIntermediateLen];
-	TCHAR args2Exec[args2ExecLen];
+HINSTANCE Command::run(HWND hWnd, const wchar_t* cwd)
+{
+	constexpr int argsIntermediateLen = MAX_PATH * 2;
+	constexpr int args2ExecLen = CURRENTWORD_MAXLENGTH + MAX_PATH * 2;
 
-	extractArgs(cmdPure, args, _cmdLine.c_str());
+	wchar_t cmdPure[MAX_PATH]{};
+	wchar_t cmdIntermediate[MAX_PATH]{};
+	wchar_t cmd2Exec[MAX_PATH]{};
+	wchar_t args[MAX_PATH]{};
+	wchar_t argsIntermediate[argsIntermediateLen]{};
+	wchar_t args2Exec[args2ExecLen]{};
+
+	extractArgs(cmdPure, MAX_PATH, args, MAX_PATH, _cmdLine.c_str());
 	int nbTchar = ::ExpandEnvironmentStrings(cmdPure, cmdIntermediate, MAX_PATH);
 	if (!nbTchar)
-		lstrcpy(cmdIntermediate, cmdPure);
+		wcscpy_s(cmdIntermediate, cmdPure);
 	else if (nbTchar >= MAX_PATH)
 		cmdIntermediate[MAX_PATH-1] = '\0';
 
 	nbTchar = ::ExpandEnvironmentStrings(args, argsIntermediate, argsIntermediateLen);
 	if (!nbTchar)
-		lstrcpy(argsIntermediate, args);
+		wcscpy_s(argsIntermediate, args);
 	else if (nbTchar >= argsIntermediateLen)
 		argsIntermediate[argsIntermediateLen-1] = '\0';
 
 	expandNppEnvironmentStrs(cmdIntermediate, cmd2Exec, MAX_PATH, hWnd);
 	expandNppEnvironmentStrs(argsIntermediate, args2Exec, args2ExecLen, hWnd);
 
-	HINSTANCE res = ::ShellExecute(hWnd, TEXT("open"), cmd2Exec, args2Exec, TEXT("."), SW_SHOW);
+	wchar_t cwd2Exec[MAX_PATH]{};
+	expandNppEnvironmentStrs(cwd, cwd2Exec, MAX_PATH, hWnd);
+
+	HINSTANCE res = ::ShellExecute(hWnd, L"open", cmd2Exec, args2Exec, cwd2Exec, SW_SHOW);
 
 	// As per MSDN (https://msdn.microsoft.com/en-us/library/windows/desktop/bb762153(v=vs.85).aspx)
 	// If the function succeeds, it returns a value greater than 32.
 	// If the function fails, it returns an error value that indicates the cause of the failure.
-	int retResult = reinterpret_cast<int>(res);
+	int retResult = static_cast<int>(reinterpret_cast<intptr_t>(res));
 	if (retResult <= 32)
 	{
-		generic_string errorMsg;
+		wstring errorMsg;
 		errorMsg += GetLastErrorAsString(retResult);
-		errorMsg += TEXT("An attempt was made to execute the below command.");
-		errorMsg += TEXT("\n----------------------------------------------------------");
-		errorMsg += TEXT("\nCommand: ");
+		errorMsg += L"An attempt was made to execute the below command.";
+		errorMsg += L"\n----------------------------------------------------------";
+		errorMsg += L"\nCommand: ";
 		errorMsg += cmd2Exec;
-		errorMsg += TEXT("\nArguments: ");
+		errorMsg += L"\nArguments: ";
 		errorMsg += args2Exec;
-		errorMsg += TEXT("\nError Code: ");
-		errorMsg += intToString(retResult);
-		errorMsg += TEXT("\n----------------------------------------------------------");
+		errorMsg += L"\nError Code: ";
+		errorMsg += std::to_wstring(retResult);
+		errorMsg += L"\n----------------------------------------------------------";
 
-		::MessageBox(hWnd, errorMsg.c_str(), TEXT("ShellExecute - ERROR"), MB_ICONINFORMATION | MB_APPLMODAL);
+		NppDarkMode::darkMessageBoxW(hWnd, errorMsg.c_str(), L"ShellExecute - ERROR", MB_ICONINFORMATION | MB_APPLMODAL);
 	}
 
 	return res;
 }
 
-INT_PTR CALLBACK RunDlg::run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam)
+void RunDlg::insertVariable(unsigned char id)
+{
+	wchar_t cmd[MAX_PATH]{};
+	::GetDlgItemText(_hSelf, IDC_COMBO_RUN_PATH, cmd, MAX_PATH);
+
+	wstring variable;
+	switch (id)
+	{
+	case 0:
+		variable = fullCurrentPath;
+		break;
+	case 1:
+		variable = currentDirectory;
+		break;
+	case 2:
+		variable = onlyFileName;
+		break;
+	case 3:
+		variable = fileNamePart;
+		break;
+	case 4:
+		variable = fileExtPart;
+		break;
+	case 5:
+		variable = currentWord;
+		break;
+	case 6:
+		variable = nppDir;
+		break;
+	case 7:
+		variable = nppFullFilePath;
+		break;
+	case 8:
+		variable = currentLine;
+		break;
+	case 9:
+		variable = currentColumn;
+		break;
+	case 10:
+		variable = currentLineStr;
+		break;
+	default:
+		return; // Invalid id number
+	}
+
+	wstring cmdNew = cmd;
+	cmdNew += L"$(" + variable + L")";
+	::SetDlgItemText(_hSelf, IDC_COMBO_RUN_PATH, cmdNew.c_str());
+}
+
+intptr_t CALLBACK RunDlg::run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message) 
 	{
+		case WM_INITDIALOG:
+		{
+			NppDarkMode::autoSubclassAndThemeChildControls(_hSelf);
+
+			return TRUE;
+		}
+
 		case NPPM_INTERNAL_FINDKEYCONFLICTS:
 		{
 			return ::SendMessage(_hParent, message, wParam, lParam);
 		}
 
-		case WM_COMMAND : 
+		case WM_CTLCOLOREDIT:
 		{
-			switch (wParam)
+			return NppDarkMode::onCtlColorCtrl(reinterpret_cast<HDC>(wParam));
+		}
+
+		case WM_CTLCOLORLISTBOX:
+		{
+			return NppDarkMode::onCtlColorListbox(wParam, lParam);
+		}
+
+		case WM_CTLCOLORDLG:
+		case WM_CTLCOLORSTATIC:
+		{
+			return NppDarkMode::onCtlColorDlg(reinterpret_cast<HDC>(wParam));
+		}
+
+		case WM_PRINTCLIENT:
+		{
+			if (NppDarkMode::isEnabled())
+			{
+				return TRUE;
+			}
+			break;
+		}
+
+		case NPPM_INTERNAL_REFRESHDARKMODE:
+		{
+			NppDarkMode::autoThemeChildControls(_hSelf);
+			return TRUE;
+		}
+
+		case WM_CHANGEUISTATE:
+		{
+			if (NppDarkMode::isEnabled())
+			{
+				redrawDlgItem(IDC_MAINTEXT_STATIC);
+			}
+
+			return FALSE;
+		}
+
+		case WM_DPICHANGED:
+		{
+			_dpiManager.setDpiWP(wParam);
+			setPositionDpi(lParam);
+			getWindowRect(_rc);
+
+			return TRUE;
+		}
+
+		case WM_COMMAND:
+		{
+			if (LOWORD(wParam) >= IDM_RUN_DLG_VARMENU_START && LOWORD(wParam) <= IDM_RUN_DLG_VARMENU_END)
+			{
+				insertVariable(static_cast<unsigned char>(LOWORD(wParam) - IDM_RUN_DLG_VARMENU_START));
+				return TRUE;
+			}
+
+			switch (LOWORD(wParam))
 			{
 				case IDCANCEL :
 					display(false);
@@ -239,12 +393,12 @@ INT_PTR CALLBACK RunDlg::run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam)
 				
 				case IDOK :
 				{
-					TCHAR cmd[MAX_PATH];
+					wchar_t cmd[MAX_PATH]{};
 					::GetDlgItemText(_hSelf, IDC_COMBO_RUN_PATH, cmd, MAX_PATH);
 					_cmdLine = cmd;
 
 					HINSTANCE hInst = run(_hParent);
-					if (int(hInst) > 32)
+					if (reinterpret_cast<intptr_t>(hInst) > 32)
 					{
 						addTextToCombo(_cmdLine.c_str());
 						display(false);
@@ -258,77 +412,98 @@ INT_PTR CALLBACK RunDlg::run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam)
 
 				case IDC_BUTTON_SAVE :
 				{
-					std::vector<UserCommand> & theUserCmds = (NppParameters::getInstance())->getUserCommandList();
+					NppParameters& nppParams = NppParameters::getInstance();
+					std::vector<UserCommand> & theUserCmds = nppParams.getUserCommandList();
 
-					int nbCmd = static_cast<int32_t>(theUserCmds.size());
-
+					const auto nbCmd = static_cast<int>(theUserCmds.size());
 					int cmdID = ID_USER_CMD + nbCmd;
-					TCHAR cmd[MAX_PATH];
+
+					DynamicMenu& runMenu = nppParams.getRunMenuItems();
+					int nbTopLevelItem = runMenu.getTopLevelItemNumber();
+
+					wchar_t cmd[MAX_PATH]{};
 					::GetDlgItemText(_hSelf, IDC_COMBO_RUN_PATH, cmd, MAX_PATH);
-					UserCommand uc(Shortcut(), cmd, cmdID);
+					UserCommand uc(Shortcut(), wstring2string(cmd, CP_UTF8).c_str(), cmdID);
 					uc.init(_hInst, _hSelf);
 
 					if (uc.doDialog() != -1)
 					{
 						HMENU mainMenu = reinterpret_cast<HMENU>(::SendMessage(_hParent, NPPM_INTERNAL_GETMENU, 0, 0));
 						HMENU hRunMenu = ::GetSubMenu(mainMenu, MENUINDEX_RUN);
-						int const posBase = 2;
+						int const posBase = runMenu.getPosBase();
 						
-						if (nbCmd == 0)
+						if (nbTopLevelItem == 0)
 							::InsertMenu(hRunMenu, posBase - 1, MF_BYPOSITION, static_cast<unsigned int>(-1), 0);
 						
 						theUserCmds.push_back(uc);
-						::InsertMenu(hRunMenu, posBase + nbCmd, MF_BYPOSITION, cmdID, uc.toMenuItemString().c_str());
+						runMenu.push_back(MenuItemUnit(cmdID, string2wstring(uc.getName(), CP_UTF8)));
+						::InsertMenu(hRunMenu, posBase + nbTopLevelItem, MF_BYPOSITION, cmdID, string2wstring(uc.toMenuItemString(), CP_UTF8).c_str());
 
-						NppParameters* nppParams = NppParameters::getInstance();
-                        if (nbCmd == 0)
+                        if (nbTopLevelItem == 0)
                         {
                             // Insert the separator and modify/delete command
-							::InsertMenu(hRunMenu, posBase + nbCmd + 1, MF_BYPOSITION, static_cast<unsigned int>(-1), 0);
-							NativeLangSpeaker *pNativeLangSpeaker = nppParams->getNativeLangSpeaker();
-							generic_string nativeLangShortcutMapperMacro = pNativeLangSpeaker->getNativeLangMenuString(IDM_SETTING_SHORTCUT_MAPPER_MACRO);
-							if (nativeLangShortcutMapperMacro == TEXT(""))
-								nativeLangShortcutMapperMacro = TEXT("Modify Shortcut/Delete Command...");
+							::InsertMenu(hRunMenu, posBase + nbTopLevelItem + 1, MF_BYPOSITION, static_cast<unsigned int>(-1), 0);
+							NativeLangSpeaker *pNativeLangSpeaker = nppParams.getNativeLangSpeaker();
+							wstring nativeLangShortcutMapperMacro = pNativeLangSpeaker->getNativeLangMenuString(IDM_SETTING_SHORTCUT_MAPPER_MACRO);
+							if (nativeLangShortcutMapperMacro == L"")
+								nativeLangShortcutMapperMacro = runMenu.getLastCmdLabel();
 
-							::InsertMenu(hRunMenu, posBase + nbCmd + 2, MF_BYCOMMAND, IDM_SETTING_SHORTCUT_MAPPER_RUN, nativeLangShortcutMapperMacro.c_str());
+							::InsertMenu(hRunMenu, posBase + nbTopLevelItem + 2, MF_BYCOMMAND, IDM_SETTING_SHORTCUT_MAPPER_RUN, nativeLangShortcutMapperMacro.c_str());
                         }
-						nppParams->getAccelerator()->updateShortcuts();
-						nppParams->setShortcutDirty();
+						nppParams.getAccelerator()->updateShortcuts();
+						nppParams.setShortcutDirty();
 					}
 					return TRUE;
 				}
 
-				case IDC_BUTTON_FILE_BROWSER :
+				case IDC_BUTTON_FILE_BROWSER:
 				{
-					FileDialog fd(_hSelf, _hInst);
-					fd.setExtFilter(TEXT("Executable file : "), TEXT(".exe"), TEXT(".com"), TEXT(".cmd"), TEXT(".bat"), NULL);
-					fd.setExtFilter(TEXT("All files : "), TEXT(".*"), NULL);
+					CustomFileDialog fd(_hSelf);
+					fd.setExtFilter(L"Executable File", { L".exe", L".com", L".cmd", L".bat" });
+					fd.setExtFilter(L"All Files", L".*");
 
-					if (const TCHAR *fn = fd.doOpenSingleFileDlg())
+					wstring fn = fd.doOpenSingleFileDlg();
+					if (!fn.empty())
 					{
-						if(wcschr(fn, ' ') != NULL)
+						if (fn.find(' ') != wstring::npos)
 						{
-							generic_string fn_quotes(fn);
-							fn_quotes = TEXT("\"") + fn_quotes + TEXT("\"");
+							wstring fn_quotes(fn);
+							fn_quotes = L"\"" + fn_quotes + L"\"";
 							addTextToCombo(fn_quotes.c_str());
 						}
 						else
 						{
-							addTextToCombo(fn);
+							addTextToCombo(fn.c_str());
 						}
 					}
 					return TRUE;
 				}
 
-				default :
+				case IDC_BUTTON_VARIABLES:
+				{
+					RECT rcButton;
+					GetWindowRect(::GetDlgItem(_hSelf, IDC_BUTTON_VARIABLES), &rcButton);
+
+					HMENU hmenu;            // menu template
+					HMENU hVariablePopup;  // shortcut menu
+					hmenu = ::LoadMenu(_hInst, MAKEINTRESOURCE(IDR_RUN_DLG_MENU_VARIABLES));
+					hVariablePopup = ::GetSubMenu(hmenu, 0);
+					TrackPopupMenu(hVariablePopup, TPM_LEFTALIGN, rcButton.right, rcButton.top, 0, _hSelf, NULL);
+					PostMessage(_hSelf, WM_NULL, 0, 0);
+					DestroyMenu(hmenu);
+
+					return TRUE;
+				}
+
+				default:
 					break;
 			}
 		}
 	}
-	return FALSE;	
+	return FALSE;
 }
 
-void RunDlg::addTextToCombo(const TCHAR *txt2Add) const
+void RunDlg::addTextToCombo(const wchar_t *txt2Add) const
 {
 	HWND handle = ::GetDlgItem(_hSelf, IDC_COMBO_RUN_PATH);
 	auto i = ::SendMessage(handle, CB_FINDSTRINGEXACT, static_cast<WPARAM>(-1), reinterpret_cast<LPARAM>(txt2Add));
@@ -336,7 +511,7 @@ void RunDlg::addTextToCombo(const TCHAR *txt2Add) const
 		i = ::SendMessage(handle, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(txt2Add));
 	::SendMessage(handle, CB_SETCURSEL, i, 0);
 }
-void RunDlg::removeTextFromCombo(const TCHAR *txt2Remove) const
+void RunDlg::removeTextFromCombo(const wchar_t *txt2Remove) const
 {
 	HWND handle = ::GetDlgItem(_hSelf, IDC_COMBO_RUN_PATH);
 	auto i = ::SendMessage(handle, CB_FINDSTRINGEXACT, static_cast<WPARAM>(-1), reinterpret_cast<LPARAM>(txt2Remove));
@@ -350,7 +525,8 @@ void RunDlg::doDialog(bool isRTL)
 	if (!isCreated())
 		create(IDD_RUN_DLG, isRTL);
 
-    // Adjust the position in the center
-	goToCenter();
+	// Adjust the position in the center
+	moveForDpiChange();
+	goToCenter(SWP_SHOWWINDOW | SWP_NOSIZE);
 	::SetFocus(::GetDlgItem(_hSelf, IDC_COMBO_RUN_PATH));
-};
+}

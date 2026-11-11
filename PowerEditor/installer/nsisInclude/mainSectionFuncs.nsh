@@ -1,71 +1,91 @@
-; this file is part of installer for Notepad++
-; Copyright (C)2016 Don HO <don.h@free.fr>
+; This file is part of Notepad++ project
+; Copyright (C)2021 Don HO <don.h@free.fr>
 ;
-; This program is free software; you can redistribute it and/or
-; modify it under the terms of the GNU General Public License
-; as published by the Free Software Foundation; either
-; version 2 of the License, or (at your option) any later version.
-;
-; Note that the GPL places important restrictions on "derived works", yet
-; it does not provide a detailed definition of that term.  To avoid      
-; misunderstandings, we consider an application to constitute a          
-; "derivative work" for the purpose of this license if it does any of the
-; following:                                                             
-; 1. Integrates source code from Notepad++.
-; 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-;    installer, such as those produced by InstallShield.
-; 3. Links to a library or executes a program that does any of the above.
+; This program is free software: you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation, either version 3 of the License, or
+; at your option any later version.
 ;
 ; This program is distributed in the hope that it will be useful,
 ; but WITHOUT ANY WARRANTY; without even the implied warranty of
-; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 ; GNU General Public License for more details.
-; 
+;
 ; You should have received a copy of the GNU General Public License
-; along with this program; if not, write to the Free Software
-; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 Var UPDATE_PATH
+Var PLUGIN_INST_PATH
+Var USER_PLUGIN_CONF_PATH
+Var ALLUSERS_PLUGIN_CONF_PATH
 Function setPathAndOptions
+    ${If} $UPDATE_PATH == ""
+	${OrIf} $PLUGIN_INST_PATH == ""
+	${OrIf} $USER_PLUGIN_CONF_PATH == ""
+	${OrIf} $ALLUSERS_PLUGIN_CONF_PATH == ""
+        Goto initUpdatePath
+	${ELSE}
+        Goto alreadyDone
+	${EndIf}
+	
+initUpdatePath:
+    
 	; Set Section properties
 	SetOverwrite on
 	StrCpy $UPDATE_PATH $INSTDIR
 		
 	SetOutPath "$INSTDIR\"
 
+	StrCpy $PLUGIN_INST_PATH "$INSTDIR\plugins"
+	StrCpy $ALLUSERS_PLUGIN_CONF_PATH "$PLUGIN_INST_PATH\Config"
+	
+	; in Silent mode we cannot use the NSIS GUI for handling the doLocalConf mode
+	; but we need to directly use the previous user setting
+	IfSilent 0 +3
+	IfFileExists $INSTDIR\doLocalConf.xml 0 +2
+	StrCpy $noUserDataChecked ${BST_CHECKED}
+
 	${If} $noUserDataChecked == ${BST_CHECKED}
-		File "..\bin\doLocalConf.xml"
+
+		File ".\xml4Config\doLocalConf.xml"
+		StrCpy $USER_PLUGIN_CONF_PATH "$ALLUSERS_PLUGIN_CONF_PATH"
+		CreateDirectory $PLUGIN_INST_PATH\config
 	${ELSE}
+	
 		IfFileExists $INSTDIR\doLocalConf.xml 0 +2
 		Delete $INSTDIR\doLocalConf.xml
+		
+		StrCpy $USER_PLUGIN_CONF_PATH "$APPDATA\${APPNAME}\plugins\Config"
 		StrCpy $UPDATE_PATH "$APPDATA\${APPNAME}"
 		CreateDirectory $UPDATE_PATH\plugins\config
 	${EndIf}
 	
-	${If} $allowPluginLoadFromUserDataChecked == ${BST_CHECKED}
-		File "..\bin\allowAppDataPlugins.xml"
-	${ELSE}
-		IfFileExists $INSTDIR\allowAppDataPlugins.xml 0 +2
-		Delete $INSTDIR\allowAppDataPlugins.xml
-	${EndIf}
+	; WriteIniStr "$INSTDIR\uninstall.ini" "Uninstall" "UPDATE_PATH" $UPDATE_PATH 
+	; WriteIniStr "$INSTDIR\uninstall.ini" "Uninstall" "PLUGIN_INST_PATH" $PLUGIN_INST_PATH 
+	; WriteIniStr "$INSTDIR\uninstall.ini" "Uninstall" "USER_PLUGIN_CONF_PATH" $USER_PLUGIN_CONF_PATH 
+	; WriteIniStr "$INSTDIR\uninstall.ini" "Uninstall" "ALLUSERS_PLUGIN_CONF_PATH" $ALLUSERS_PLUGIN_CONF_PATH 
+
+alreadyDone:
 FunctionEnd
-	
+
+Function un.setPathAndOptions
+    ReadINIStr $UPDATE_PATH "$INSTDIR\uninstall.ini" "Uninstall" "UPDATE_PATH" 
+    ReadINIStr $PLUGIN_INST_PATH "$INSTDIR\uninstall.ini" "Uninstall" "PLUGIN_INST_PATH" 
+    ReadINIStr $USER_PLUGIN_CONF_PATH "$INSTDIR\uninstall.ini" "Uninstall" "USER_PLUGIN_CONF_PATH" 
+    ReadINIStr $ALLUSERS_PLUGIN_CONF_PATH "$INSTDIR\uninstall.ini" "Uninstall" "ALLUSERS_PLUGIN_CONF_PATH" 
+FunctionEnd
+
+
 Function copyCommonFiles
 	SetOverwrite off
 	SetOutPath "$UPDATE_PATH\"
-	File "..\bin\contextMenu.xml"
-	File "..\bin\functionList.xml"
-	
+	File "..\src\tabContextMenu_example.xml"
+	File "..\src\toolbarButtonsConf_example.xml"
+
 	SetOverwrite on
 	SetOutPath "$INSTDIR\"
 	File "..\bin\langs.model.xml"
 	File "..\bin\stylers.model.xml"
-	File "..\bin\contextMenu.xml"
-	File "..\bin\functionList.xml"
-
-	SetOverwrite off
-	File "..\bin\shortcuts.xml"
-
 	
 	; Set Section Files and Shortcuts
 	SetOverwrite on
@@ -74,18 +94,25 @@ Function copyCommonFiles
 	File "..\bin\readme.txt"
 	
 !ifdef ARCH64
-	File "..\bin64\SciLexer.dll"
 	File "..\bin64\notepad++.exe"
+!else ifdef ARCHARM64
+	File "..\binarm64\notepad++.exe"
 !else
-	File "..\bin\SciLexer.dll"
 	File "..\bin\notepad++.exe"
 !endif
+
+	; Markdown in user defined languages
+	SetOutPath "$UPDATE_PATH\userDefineLangs\"
+	Delete "$UPDATE_PATH\userDefineLangs\userDefinedLang-markdown.default.modern.xml"
+	File "..\bin\userDefineLangs\markdown._preinstalled.udl.xml"
+	File "..\bin\userDefineLangs\markdown._preinstalled_DM.udl.xml"
+
 	; Localization
 	; Default language English 
 	SetOutPath "$INSTDIR\localization\"
 	File ".\nativeLang\english.xml"
 
-	; Copy all the language files to the temp directory
+	; Copy all the Notepad++ localization files to the temp directory
 	; than make them installed via option
 	SetOutPath "$PLUGINSDIR\nppLocalization\"
 	File ".\nativeLang\"
@@ -96,157 +123,256 @@ Function copyCommonFiles
 	IfFileExists "$INSTDIR\nativeLang.xml" 0 +2
 		Delete "$INSTDIR\nativeLang.xml"
 
-	StrCmp $LANGUAGE ${LANG_ENGLISH} +3 0
+	StrCmp $LANGUAGE ${LANG_ENGLISH} +5 0
 	CopyFiles "$PLUGINSDIR\nppLocalization\$(langFileName)" "$UPDATE_PATH\nativeLang.xml"
 	CopyFiles "$PLUGINSDIR\nppLocalization\$(langFileName)" "$INSTDIR\localization\$(langFileName)"
+	IfFileExists "$PLUGINSDIR\gupLocalization\$(langFileName)" 0 +2
+		CopyFiles "$PLUGINSDIR\gupLocalization\$(langFileName)" "$INSTDIR\updater\nativeLang.xml"
+
 FunctionEnd
 
-	
+; Source from: https://nsis.sourceforge.io/VersionCompare
+Function VersionCompare
+	!define VersionCompare `!insertmacro VersionCompareCall`
+ 
+	!macro VersionCompareCall _VER1 _VER2 _RESULT
+		Push `${_VER1}`
+		Push `${_VER2}`
+		Call VersionCompare
+		Pop ${_RESULT}
+	!macroend
+ 
+	Exch $1
+	Exch
+	Exch $0
+	Exch
+	Push $2
+	Push $3
+	Push $4
+	Push $5
+	Push $6
+	Push $7
+ 
+	begin:
+	StrCpy $2 -1
+	IntOp $2 $2 + 1
+	StrCpy $3 $0 1 $2
+	StrCmp $3 '' +2
+	StrCmp $3 '.' 0 -3
+	StrCpy $4 $0 $2
+	IntOp $2 $2 + 1
+	StrCpy $0 $0 '' $2
+ 
+	StrCpy $2 -1
+	IntOp $2 $2 + 1
+	StrCpy $3 $1 1 $2
+	StrCmp $3 '' +2
+	StrCmp $3 '.' 0 -3
+	StrCpy $5 $1 $2
+	IntOp $2 $2 + 1
+	StrCpy $1 $1 '' $2
+ 
+	StrCmp $4$5 '' equal
+ 
+	StrCpy $6 -1
+	IntOp $6 $6 + 1
+	StrCpy $3 $4 1 $6
+	StrCmp $3 '0' -2
+	StrCmp $3 '' 0 +2
+	StrCpy $4 0
+ 
+	StrCpy $7 -1
+	IntOp $7 $7 + 1
+	StrCpy $3 $5 1 $7
+	StrCmp $3 '0' -2
+	StrCmp $3 '' 0 +2
+	StrCpy $5 0
+ 
+	StrCmp $4 0 0 +2
+	StrCmp $5 0 begin newer2
+	StrCmp $5 0 newer1
+	IntCmp $6 $7 0 newer1 newer2
+ 
+	StrCpy $4 '1$4'
+	StrCpy $5 '1$5'
+	IntCmp $4 $5 begin newer2 newer1
+ 
+	equal:
+	StrCpy $0 0
+	goto end
+	newer1:
+	StrCpy $0 1
+	goto end
+	newer2:
+	StrCpy $0 2
+ 
+	end:
+	Pop $7
+	Pop $6
+	Pop $5
+	Pop $4
+	Pop $3
+	Pop $2
+	Pop $1
+	Exch $0
+FunctionEnd
+
 Function removeUnstablePlugins
 	; remove unstable plugins
 	CreateDirectory "$INSTDIR\plugins\disabled"
 	
-	IfFileExists "$INSTDIR\plugins\HexEditorPlugin.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nHexEditorPlugin.dll is about to be deleted." /SD IDOK
-		Rename "$INSTDIR\plugins\HexEditorPlugin.dll" "$INSTDIR\plugins\disabled\HexEditorPlugin.dll"
-		Delete "$INSTDIR\plugins\HexEditorPlugin.dll"
+	; NppSaveAsAdmin makes Notepad++ crash. "1.0.211.0" is its 1st version which contains the fix
+	IfFileExists "$INSTDIR\plugins\NppSaveAsAdmin\NppSaveAsAdmin.dll" 0 NppSaveAsAdminTestEnd
+		${GetFileVersion} "$INSTDIR\plugins\NppSaveAsAdmin\NppSaveAsAdmin.dll" $R0
+		${VersionCompare} $R0 "1.0.211.0" $R1 ;   0: equal to 1.0.211.0   1: $R0 is newer   2: 1.0.211.0 is newer
+		StrCmp $R1 "0" +5 0 ; if equal skip all & go to end, else go to next
+		StrCmp $R1 "1" +4 0 ; if newer skip all & go to end, else older (2) then go to next
+		MessageBox MB_OK "Due to NppSaveAsAdmin plugin's incompatibility issue in version $R0, NppSaveAsAdmin.dll will be deleted. Use Plugins Admin to add back (the latest version of) NppSaveAsAdmin." /SD IDOK
+		Rename "$INSTDIR\plugins\NppSaveAsAdmin\NppSaveAsAdmin.dll" "$INSTDIR\plugins\disabled\NppSaveAsAdmin.dll"
+		Delete "$INSTDIR\plugins\NppSaveAsAdmin\NppSaveAsAdmin.dll"
+NppSaveAsAdminTestEnd:
 
-	IfFileExists "$INSTDIR\plugins\HexEditor.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nHexEditor.dll will be moved to the directory $\"disabled$\"" /SD IDOK 
-		Rename "$INSTDIR\plugins\HexEditor.dll" "$INSTDIR\plugins\disabled\HexEditor.dll" 
-		Delete "$INSTDIR\plugins\HexEditor.dll"
+!ifdef ARCH64 || ARCHARM64 ; x64 or ARM64
 
-	IfFileExists "$INSTDIR\plugins\MultiClipboard.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nMultiClipboard.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\MultiClipboard.dll" "$INSTDIR\plugins\disabled\MultiClipboard.dll"
-		Delete "$INSTDIR\plugins\MultiClipboard.dll"
-		
-	Delete "$INSTDIR\plugins\NppDocShare.dll"
+	; HexEditor makes Notepad++ x64 crash. "0.9.12" is its 1st version which contains the fix
+	IfFileExists "$INSTDIR\plugins\HexEditor\HexEditor.dll" 0 HexEditorTestEnd64
+		${GetFileVersion} "$INSTDIR\plugins\HexEditor\HexEditor.dll" $R0
+		${VersionCompare} $R0 "0.9.12" $R1 ;   0: equal to 0.9.12   1: $R0 is newer   2: 0.9.12 is newer
+		StrCmp $R1 "0" +5 0 ; if equal skip all & go to end, else go to next
+		StrCmp $R1 "1" +4 0 ; if newer skip all & go to end, else older (2) then go to next
+		MessageBox MB_OK "Due to HexEditor plugin's incompatibility issue in version $R0, HexEditor.dll will be deleted. Use Plugins Admin to add back (the latest version of) HexEditor." /SD IDOK
+		Rename "$INSTDIR\plugins\HexEditor\HexEditor.dll" "$INSTDIR\plugins\disabled\HexEditor.dll"
+		Delete "$INSTDIR\plugins\HexEditor\HexEditor.dll"
+HexEditorTestEnd64:
 
-	IfFileExists "$INSTDIR\plugins\FunctionList.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nFunctionList.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\FunctionList.dll" "$INSTDIR\plugins\disabled\FunctionList.dll"
-		Delete "$INSTDIR\plugins\FunctionList.dll"
-	
-	IfFileExists "$INSTDIR\plugins\docMonitor.unicode.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\ndocMonitor.unicode.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\docMonitor.unicode.dll" "$INSTDIR\plugins\disabled\docMonitor.unicode.dll"
-		Delete "$INSTDIR\plugins\docMonitor.unicode.dll"
-		
-	IfFileExists "$INSTDIR\plugins\NPPTextFX.ini" 0 +1
-		Delete "$INSTDIR\plugins\NPPTextFX.ini"
-		 
-	IfFileExists "$INSTDIR\plugins\NppAutoIndent.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nNppAutoIndent.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\NppAutoIndent.dll" "$INSTDIR\plugins\disabled\NppAutoIndent.dll"
-		Delete "$INSTDIR\plugins\NppAutoIndent.dll"
+	; ComparePlugin makes Notepad++ x64 crash. "2.0.2" is its 1st version which contains the fix
+	IfFileExists "$INSTDIR\plugins\ComparePlugin\ComparePlugin.dll" 0 CompareTestEnd64
+		${GetFileVersion} "$INSTDIR\plugins\ComparePlugin\ComparePlugin.dll" $R0
+		${VersionCompare} $R0 "2.0.2" $R1 ;   0: equal to 2.0.2   1: $R0 is newer   2: 2.0.2 is newer
+		StrCmp $R1 "0" +5 0 ; if equal skip all & go to end, else go to next
+		StrCmp $R1 "1" +4 0 ; if newer skip all & go to end, else older (2) then go to next
+		MessageBox MB_OK "Due to ComparePlugin plugin's incompatibility issue in version $R0, ComparePlugin.dll will be deleted. Use Plugins Admin to add back (the latest version of) ComparePlugin." /SD IDOK
+		Rename "$INSTDIR\plugins\ComparePlugin\ComparePlugin.dll" "$INSTDIR\plugins\disabled\ComparePlugin.dll"
+		Delete "$INSTDIR\plugins\ComparePlugin\ComparePlugin.dll"
+CompareTestEnd64:
 
-	IfFileExists "$INSTDIR\plugins\FTP_synchronize.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nFTP_synchronize.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\FTP_synchronize.dll" "$INSTDIR\plugins\disabled\FTP_synchronize.dll"
-		Delete "$INSTDIR\plugins\FTP_synchronize.dll"
+	; DSpellCheck makes Notepad++ x64 crash. "1.4.23" is its 1st version which contains the fix
+	IfFileExists "$INSTDIR\plugins\DSpellCheck\DSpellCheck.dll" 0 DSpellCheckTestEnd64
+		${GetFileVersion} "$INSTDIR\plugins\DSpellCheck\DSpellCheck.dll" $R0
+		${VersionCompare} $R0 "1.4.23" $R1 ;   0: equal to 1.4.23   1: $R0 is newer   2: 1.4.23 is newer
+		StrCmp $R1 "0" +5 0 ; if equal skip all & go to end, else go to next
+		StrCmp $R1 "1" +4 0 ; if newer skip all & go to end, else older (2) then go to next
+		MessageBox MB_OK "Due to DSpellCheck plugin's incompatibility issue in version $R0, DSpellCheck.dll will be deleted. Use Plugins Admin to add back (the latest version of) DSpellCheck." /SD IDOK
+		Rename "$INSTDIR\plugins\DSpellCheck\DSpellCheck.dll" "$INSTDIR\plugins\disabled\DSpellCheck.dll"
+		Delete "$INSTDIR\plugins\DSpellCheck\DSpellCheck.dll"
+DSpellCheckTestEnd64:
 
-	IfFileExists "$INSTDIR\plugins\NppPlugin_ChangeMarker.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nNppPlugin_ChangeMarker.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\NppPlugin_ChangeMarker.dll" "$INSTDIR\plugins\disabled\NppPlugin_ChangeMarker.dll"
-		Delete "$INSTDIR\plugins\NppPlugin_ChangeMarker.dll"
-		
-	IfFileExists "$INSTDIR\plugins\QuickText.UNI.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nQuickText.UNI.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\QuickText.UNI.dll" "$INSTDIR\plugins\disabled\QuickText.UNI.dll"
-		Delete "$INSTDIR\plugins\QuickText.UNI.dll"
+	; SpeechPlugin makes Notepad++ x64 crash. "0.4.0.0" is its 1st version which contains the fix
+	IfFileExists "$INSTDIR\plugins\SpeechPlugin\SpeechPlugin.dll" 0 SpeechPluginTestEnd64
+		${GetFileVersion} "$INSTDIR\plugins\SpeechPlugin\SpeechPlugin.dll" $R0
+		${VersionCompare} $R0 "0.4.0.0" $R1 ;   0: equal to 0.4.0.0   1: $R0 is newer   2: 0.4.0.0 is newer
+		StrCmp $R1 "0" +5 0 ; if equal skip all & go to end, else go to next
+		StrCmp $R1 "1" +4 0 ; if newer skip all & go to end, else older (2) then go to next
+		MessageBox MB_OK "Due to SpeechPlugin plugin's incompatibility issue in version $R0, SpeechPlugin.dll will be deleted. Use Plugins Admin to add back (the latest version of) SpeechPlugin." /SD IDOK
+		Rename "$INSTDIR\plugins\SpeechPlugin\SpeechPlugin.dll" "$INSTDIR\plugins\disabled\SpeechPlugin.dll"
+		Delete "$INSTDIR\plugins\SpeechPlugin\SpeechPlugin.dll"
+SpeechPluginTestEnd64:
 
-	IfFileExists "$INSTDIR\plugins\AHKExternalLexer.dll" 0 +4
-		MessageBox MB_OK "Due to the compatibility issue,$\nAHKExternalLexer.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\AHKExternalLexer.dll" "$INSTDIR\plugins\disabled\AHKExternalLexer.dll"
-		Delete "$INSTDIR\plugins\AHKExternalLexer.dll"
+	; XMLTools makes Notepad++ x64 crash. "3.1.1.12" is its 1st version which contains the fix
+	IfFileExists "$INSTDIR\plugins\XMLTools\XMLTools.dll" 0 XMLToolsTestEnd64
+		${GetFileVersion} "$INSTDIR\plugins\XMLTools\XMLTools.dll" $R0
+		${VersionCompare} $R0 "3.1.1.12" $R1 ;   0: equal to 3.1.1.12   1: $R0 is newer   2: 3.1.1.12 is newer
+		StrCmp $R1 "0" +5 0 ; if equal skip all & go to end, else go to next
+		StrCmp $R1 "1" +4 0 ; if newer skip all & go to end, else older (2) then go to next
+		MessageBox MB_OK "Due to XMLTools plugin's incompatibility issue in version $R0, XMLTools.dll will be deleted. Use Plugins Admin to add back (the latest version of) XMLTools." /SD IDOK
+		Rename "$INSTDIR\plugins\XMLTools\XMLTools.dll" "$INSTDIR\plugins\disabled\XMLTools.dll"
+		Delete "$INSTDIR\plugins\XMLTools\XMLTools.dll"
+XMLToolsTestEnd64:
 
-	IfFileExists "$INSTDIR\plugins\NppExternalLexers.dll" 0 +4
-		MessageBox MB_OK "Due to the compatibility issue,$\n\NppExternalLexers.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\NppExternalLexers.dll" "$INSTDIR\plugins\disabled\NppExternalLexers.dll"
-		Delete "$INSTDIR\plugins\NppExternalLexers.dll"
+	; NppTaskList makes Notepad++ x64 crash. "2.4" is its 1st version which contains the fix
+	IfFileExists "$INSTDIR\plugins\NppTaskList\NppTaskList.dll" 0 NppTaskListTestEnd64
+		${GetFileVersion} "$INSTDIR\plugins\NppTaskList\NppTaskList.dll" $R0
+		${VersionCompare} $R0 "2.4" $R1 ;   0: equal to 2.4   1: $R0 is newer   2: 2.4 is newer
+		StrCmp $R1 "0" +5 0 ; if equal skip all & go to end, else go to next
+		StrCmp $R1 "1" +4 0 ; if newer skip all & go to end, else older (2) then go to next
+		MessageBox MB_OK "Due to NppTaskList plugin's incompatibility issue in version $R0, NppTaskList.dll will be deleted. Use Plugins Admin to add back (the latest version of) NppTaskList." /SD IDOK
+		Rename "$INSTDIR\plugins\NppTaskList\NppTaskList.dll" "$INSTDIR\plugins\disabled\NppTaskList.dll"
+		Delete "$INSTDIR\plugins\NppTaskList\NppTaskList.dll"
+NppTaskListTestEnd64:
 
-	IfFileExists "$INSTDIR\plugins\ExternalLexerKVS.dll" 0 +4
-		MessageBox MB_OK "Due to the compatibility issue,$\n\ExternalLexerKVS.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\ExternalLexerKVS.dll" "$INSTDIR\plugins\disabled\ExternalLexerKVS.dll"
-		Delete "$INSTDIR\plugins\ExternalLexerKVS.dll"
+	; jN makes Notepad++ x64 crash. "2.2.185.7" is its 1st version which contains the fix
+	IfFileExists "$INSTDIR\plugins\jN\jN.dll" 0 jN64
+		${GetFileVersion} "$INSTDIR\plugins\jN\jN.dll" $R0
+		${VersionCompare} $R0 "2.2.185.7" $R1 ;   0: equal to 2.2.185.7   1: $R0 is newer   2: 2.4 is newer
+		StrCmp $R1 "0" +5 0 ; if equal skip all & go to end, else go to next
+		StrCmp $R1 "1" +4 0 ; if newer skip all & go to end, else older (2) then go to next
+		MessageBox MB_OK "Due to jN plugin's incompatibility issue in version $R0, jN.dll will be deleted. Use Plugins Admin to add back (the latest version of) jN." /SD IDOK
+		Rename "$INSTDIR\plugins\jN\jN.dll" "$INSTDIR\plugins\disabled\jN.dll"
+		Delete "$INSTDIR\plugins\jN\jN.dll"
+jN64:
 
-	IfFileExists "$INSTDIR\plugins\Oberon2LexerU.dll" 0 +4
-		MessageBox MB_OK "Due to the compatibility issue,$\n\Oberon2LexerU.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\Oberon2LexerU.dll" "$INSTDIR\plugins\disabled\Oberon2LexerU.dll"
-		Delete "$INSTDIR\plugins\Oberon2LexerU.dll"
+
+	IfFileExists "$INSTDIR\plugins\NppQCP\NppQCP.dll" 0 NppQCPTestEnd64
+		MessageBox MB_OK "Due to NppQCP plugin's crash issue on Notepad++ x64 binary, NppQCP.dll will be removed." /SD IDOK
+		Rename "$INSTDIR\plugins\NppQCP\NppQCP.dll" "$INSTDIR\plugins\disabled\NppQCP.dll"
+		Delete "$INSTDIR\plugins\NppQCP\NppQCP.dll"
+NppQCPTestEnd64:
 
 
-	IfFileExists "$INSTDIR\plugins\NotepadSharp.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\n\NotepadSharp.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\NotepadSharp.dll" "$INSTDIR\plugins\disabled\NotepadSharp.dll"
-		Delete "$INSTDIR\plugins\NotepadSharp.dll"
-		
-	IfFileExists "$INSTDIR\plugins\PreviewHTML.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nPreviewHTML.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\PreviewHTML.dll" "$INSTDIR\plugins\disabled\PreviewHTML.dll"
-		Delete "$INSTDIR\plugins\PreviewHTML.dll"
-		
-	IfFileExists "$INSTDIR\plugins\nppRegEx.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nnppRegEx.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\nppRegEx.dll" "$INSTDIR\plugins\disabled\nppRegEx.dll"
-		Delete "$INSTDIR\plugins\nppRegEx.dll"
-		
-	IfFileExists "$INSTDIR\plugins\AutoSaveU.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nAutoSaveU.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\AutoSaveU.dll" "$INSTDIR\plugins\disabled\AutoSaveU.dll"
-		Delete "$INSTDIR\plugins\AutoSaveU.dll"
-		
-	IfFileExists "$INSTDIR\plugins\NppQCP.dll" 0 +4
-		MessageBox MB_OK "Due to the stability issue,$\nNppQCP.dll will be moved to the directory $\"disabled$\"" /SD IDOK
-		Rename "$INSTDIR\plugins\NppQCP.dll" "$INSTDIR\plugins\disabled\NppQCP.dll"
-		Delete "$INSTDIR\plugins\NppQCP.dll"
-		
-	IfFileExists "$INSTDIR\plugins\DSpellCheck.dll" 0 +11
-		MessageBox MB_YESNOCANCEL "Due to the stability issue, DSpellCheck.dll will be moved to the directory $\"disabled$\".$\nChoose Cancel to keep it for this installation.$\nChoose No to keep it forever." /SD IDYES IDNO never IDCANCEL donothing ;IDYES remove
-		Rename "$INSTDIR\plugins\DSpellCheck.dll" "$INSTDIR\plugins\disabled\DSpellCheck.dll"
-		Delete "$INSTDIR\plugins\DSpellCheck.dll"
-		Goto donothing
-	never:
-		Rename "$INSTDIR\plugins\DSpellCheck.dll" "$INSTDIR\plugins\DSpellCheck2.dll"
-		Goto donothing
-	donothing:
+!else ; 32-bit installer
+
+		; https://github.com/chcg/NPP_HexEdit/issues/51
+		IfFileExists "$INSTDIR\plugins\HexEditor\HexEditor.dll" 0 noDeleteHEPlugin32
+			MessageBox MB_YESNO "HexEditor plugin is unstable, we suggest you to remove it.$\nRemove HexEditor plugin?" /SD IDYES IDYES doDeleteHEPlugin32 IDNO noDeleteHEPlugin32 ;IDYES remove
+doDeleteHEPlugin32:
+                Rename "$INSTDIR\plugins\HexEditor\HexEditor.dll" "$INSTDIR\plugins\disabled\HexEditor.dll"
+                Delete "$INSTDIR\plugins\HexEditor\HexEditor.dll"
+noDeleteHEPlugin32:
+
+!endif
+
 FunctionEnd
 
 Function removeOldContextMenu
    ; Context Menu Management : removing old version of Context Menu module
 	IfFileExists "$INSTDIR\nppcm.dll" 0 +3
-		Exec 'regsvr32 /u /s "$INSTDIR\nppcm.dll"'
+		ExecWait '"$winSysDir\regsvr32.exe" /u /s "$INSTDIR\nppcm.dll"'
 		Delete "$INSTDIR\nppcm.dll"
-        
+
     IfFileExists "$INSTDIR\NppShell.dll" 0 +3
-		Exec 'regsvr32 /u /s "$INSTDIR\NppShell.dll"'
+		ExecWait '"$winSysDir\regsvr32.exe" /u /s "$INSTDIR\NppShell.dll"'
 		Delete "$INSTDIR\NppShell.dll"
-		
+
     IfFileExists "$INSTDIR\NppShell_01.dll" 0 +3
-		Exec 'regsvr32 /u /s "$INSTDIR\NppShell_01.dll"'
+		ExecWait '"$winSysDir\regsvr32.exe" /u /s "$INSTDIR\NppShell_01.dll"'
 		Delete "$INSTDIR\NppShell_01.dll"
-        
+
     IfFileExists "$INSTDIR\NppShell_02.dll" 0 +3
-		Exec 'regsvr32 /u /s "$INSTDIR\NppShell_02.dll"'
+		ExecWait '"$winSysDir\regsvr32.exe" /u /s "$INSTDIR\NppShell_02.dll"'
 		Delete "$INSTDIR\NppShell_02.dll"
-		
+
     IfFileExists "$INSTDIR\NppShell_03.dll" 0 +3
-		Exec 'regsvr32 /u /s "$INSTDIR\NppShell_03.dll"'
+		ExecWait '"$winSysDir\regsvr32.exe" /u /s "$INSTDIR\NppShell_03.dll"'
 		Delete "$INSTDIR\NppShell_03.dll"
-		
+
 	IfFileExists "$INSTDIR\NppShell_04.dll" 0 +3
-		Exec 'regsvr32 /u /s "$INSTDIR\NppShell_04.dll"'
+		ExecWait '"$winSysDir\regsvr32.exe" /u /s "$INSTDIR\NppShell_04.dll"'
 		Delete "$INSTDIR\NppShell_04.dll"
-		
+
 	IfFileExists "$INSTDIR\NppShell_05.dll" 0 +3
-		Exec 'regsvr32 /u /s "$INSTDIR\NppShell_05.dll"'
+		ExecWait '"$winSysDir\regsvr32.exe" /u /s "$INSTDIR\NppShell_05.dll"'
 		Delete "$INSTDIR\NppShell_05.dll"
+
+	IfFileExists "$INSTDIR\NppShell_06.dll" 0 +3
+		ExecWait '"$winSysDir\regsvr32.exe" /u /s "$INSTDIR\NppShell_06.dll"'
+		Delete "$INSTDIR\NppShell_06.dll"
+
 FunctionEnd
 
 Function shortcutLinkManagement
 	; remove all the npp shortcuts from current user
 	Delete "$DESKTOP\Notepad++.lnk"
+	Delete "$SMPROGRAMS\Notepad++.lnk"
 	Delete "$SMPROGRAMS\${APPNAME}\Notepad++.lnk"
 	Delete "$SMPROGRAMS\${APPNAME}\readme.lnk"
 	Delete "$SMPROGRAMS\${APPNAME}\Uninstall.lnk"
@@ -263,8 +389,7 @@ Function shortcutLinkManagement
 	SetOutPath "$INSTDIR\"
 	
 	; add all the npp shortcuts for all user or current user
-	CreateDirectory "$SMPROGRAMS\${APPNAME}"
-	CreateShortCut "$SMPROGRAMS\${APPNAME}\Notepad++.lnk" "$INSTDIR\notepad++.exe"
+	CreateShortCut "$SMPROGRAMS\Notepad++.lnk" "$INSTDIR\notepad++.exe"
 	${If} $createShortcutChecked == ${BST_CHECKED}
 		CreateShortCut "$DESKTOP\Notepad++.lnk" "$INSTDIR\notepad++.exe"
 	${EndIf}

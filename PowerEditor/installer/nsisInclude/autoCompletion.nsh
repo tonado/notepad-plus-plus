@@ -1,219 +1,332 @@
-; this file is part of installer for Notepad++
-; Copyright (C)2016 Don HO <don.h@free.fr>
+; This file is part of Notepad++ project
+; Copyright (C)2021 Don HO <don.h@free.fr>
 ;
-; This program is free software; you can redistribute it and/or
-; modify it under the terms of the GNU General Public License
-; as published by the Free Software Foundation; either
-; version 2 of the License, or (at your option) any later version.
-;
-; Note that the GPL places important restrictions on "derived works", yet
-; it does not provide a detailed definition of that term.  To avoid      
-; misunderstandings, we consider an application to constitute a          
-; "derivative work" for the purpose of this license if it does any of the
-; following:                                                             
-; 1. Integrates source code from Notepad++.
-; 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-;    installer, such as those produced by InstallShield.
-; 3. Links to a library or executes a program that does any of the above.
+; This program is free software: you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation, either version 3 of the License, or
+; at your option any later version.
 ;
 ; This program is distributed in the hope that it will be useful,
 ; but WITHOUT ANY WARRANTY; without even the implied warranty of
-; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 ; GNU General Public License for more details.
-; 
+;
 ; You should have received a copy of the GNU General Public License
-; along with this program; if not, write to the Free Software
-; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 SectionGroup "Auto-completion Files" autoCompletionComponent
-	SetOverwrite off
-	
+	SetOverwrite on
+
 	${MementoSection} "C" C
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\c.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "C++" C++
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\cpp.xml"
 	${MementoSectionEnd}
 
 	${MementoSection} "Java" Java
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\java.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "C#" C#
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\cs.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "HTML" HTML
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\html.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "RC" RC
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\rc.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "SQL" SQL
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\sql.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "PHP" PHP
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\php.xml"
 	${MementoSectionEnd}
 
 	${MementoSection} "CSS" CSS
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\css.xml"
 	${MementoSectionEnd}
 
 	${MementoSection} "VB" VB
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\vb.xml"
 	${MementoSectionEnd}
 
 	${MementoSection} "Perl" Perl
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\perl.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "JavaScript" JavaScript
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\javascript.xml"
 	${MementoSectionEnd}
 
 	${MementoSection} "Python" Python
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\python.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "ActionScript" ActionScript
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\actionscript.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "LISP" LISP
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\lisp.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "VHDL" VHDL
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\vhdl.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "TeX" TeX
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\tex.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "DocBook" DocBook
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\xml.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "NSIS" NSIS
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\nsis.xml"
 	${MementoSectionEnd}
-	
+
 	${MementoSection} "CMAKE" CMAKE
-		SetOutPath "$INSTDIR\plugins\APIs"
+		SetOutPath "$INSTDIR\autoCompletion"
 		File ".\APIs\cmake.xml"
 	${MementoSectionEnd}
+
+	${MementoSection} "BATCH" BATCH
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\batch.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "CoffeeScript" CoffeeScript
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\coffee.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "BaanC" BaanC
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\baanc.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "Lua" Lua
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\lua.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "AutoIt" AutoIt
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\autoit.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "COBOL" COBOL
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\cobol.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "TypeScript" TypeScript
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\typescript.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "PowerShell" PowerShell
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\powershell.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "GDScript" GDScript
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\gdscript.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "Go" Go
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\go.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "Raku" Raku
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\raku.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "SAS" SAS
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\sas.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "Rust" Rust
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\rust.xml"
+	${MementoSectionEnd}
+
+	${MementoSection} "D" D
+		SetOutPath "$INSTDIR\autoCompletion"
+		File ".\APIs\d.xml"
+	${MementoSectionEnd}
+
 SectionGroupEnd
 
 
 
 SectionGroup un.autoCompletionComponent
 	Section un.PHP
-		Delete "$INSTDIR\plugins\APIs\php.xml"
+		Delete "$INSTDIR\autoCompletion\php.xml"
 	SectionEnd
 
 	Section un.CSS
-		Delete "$INSTDIR\plugins\APIs\css.xml"
-	SectionEnd	
-	
+		Delete "$INSTDIR\autoCompletion\css.xml"
+	SectionEnd
+
 	Section un.HTML
-		Delete "$INSTDIR\plugins\APIs\html.xml"
+		Delete "$INSTDIR\autoCompletion\html.xml"
 	SectionEnd
-	
+
 	Section un.SQL
-		Delete "$INSTDIR\plugins\APIs\sql.xml"
+		Delete "$INSTDIR\autoCompletion\sql.xml"
 	SectionEnd
-	
+
 	Section un.RC
-		Delete "$INSTDIR\plugins\APIs\rc.xml"
+		Delete "$INSTDIR\autoCompletion\rc.xml"
 	SectionEnd
 
 	Section un.VB
-		Delete "$INSTDIR\plugins\APIs\vb.xml"
+		Delete "$INSTDIR\autoCompletion\vb.xml"
 	SectionEnd
 
 	Section un.Perl
-		Delete "$INSTDIR\plugins\APIs\perl.xml"
+		Delete "$INSTDIR\autoCompletion\perl.xml"
 	SectionEnd
 
 	Section un.C
-		Delete "$INSTDIR\plugins\APIs\c.xml"
+		Delete "$INSTDIR\autoCompletion\c.xml"
 	SectionEnd
-	
+
 	Section un.C++
-		Delete "$INSTDIR\plugins\APIs\cpp.xml"
+		Delete "$INSTDIR\autoCompletion\cpp.xml"
 	SectionEnd
-	
+
 	Section un.Java
-		Delete "$INSTDIR\plugins\APIs\java.xml"
+		Delete "$INSTDIR\autoCompletion\java.xml"
 	SectionEnd
-	
+
 	Section un.C#
-		Delete "$INSTDIR\plugins\APIs\cs.xml"
+		Delete "$INSTDIR\autoCompletion\cs.xml"
 	SectionEnd
-	
+
 	Section un.JavaScript
-		Delete "$INSTDIR\plugins\APIs\javascript.xml"
+		Delete "$INSTDIR\autoCompletion\javascript.xml"
 	SectionEnd
 
 	Section un.Python
-		Delete "$INSTDIR\plugins\APIs\python.xml"
+		Delete "$INSTDIR\autoCompletion\python.xml"
 	SectionEnd
 
 	Section un.ActionScript
-		Delete "$INSTDIR\plugins\APIs\actionscript.xml"
+		Delete "$INSTDIR\autoCompletion\actionscript.xml"
 	SectionEnd
-	
+
 	Section un.LISP
-		Delete "$INSTDIR\plugins\APIs\lisp.xml"
+		Delete "$INSTDIR\autoCompletion\lisp.xml"
 	SectionEnd
-	
+
 	Section un.VHDL
-		Delete "$INSTDIR\plugins\APIs\vhdl.xml"
-	SectionEnd	
-	
+		Delete "$INSTDIR\autoCompletion\vhdl.xml"
+	SectionEnd
+
 	Section un.TeX
-		Delete "$INSTDIR\plugins\APIs\tex.xml"
+		Delete "$INSTDIR\autoCompletion\tex.xml"
 	SectionEnd
-	
+
 	Section un.DocBook
-		Delete "$INSTDIR\plugins\APIs\xml.xml"
+		Delete "$INSTDIR\autoCompletion\xml.xml"
 	SectionEnd
-	
+
 	Section un.NSIS
-		Delete "$INSTDIR\plugins\APIs\nsis.xml"
+		Delete "$INSTDIR\autoCompletion\nsis.xml"
 	SectionEnd
-	
-	Section un.AWK
-		Delete "$INSTDIR\plugins\APIs\awk.xml"
-	SectionEnd
-	
+
 	Section un.CMAKE
-		Delete "$INSTDIR\plugins\APIs\cmake.xml"
-	SectionEnd	
+		Delete "$INSTDIR\autoCompletion\cmake.xml"
+	SectionEnd
+
+	Section un.BATCH
+		Delete "$INSTDIR\autoCompletion\batch.xml"
+	SectionEnd
+
+	Section un.CoffeeScript
+		Delete "$INSTDIR\autoCompletion\coffee.xml"
+	SectionEnd
+
+	Section un.BaanC
+		Delete "$INSTDIR\autoCompletion\baanc.xml"
+	SectionEnd
+
+	Section un.Lua
+		Delete "$INSTDIR\autoCompletion\lua.xml"
+	SectionEnd
+
+	Section un.AutoIt
+		Delete "$INSTDIR\autoCompletion\autoit.xml"
+	SectionEnd
+
+	Section un.COBOL
+		Delete "$INSTDIR\autoCompletion\cobol.xml"
+	SectionEnd
+
+	Section un.TypeScript
+		Delete "$INSTDIR\autoCompletion\typescript.xml"
+	SectionEnd
+
+	Section un.PowerShell
+		Delete "$INSTDIR\autoCompletion\powershell.xml"
+	SectionEnd
+
+	Section un.GDScript
+		Delete "$INSTDIR\autoCompletion\gdscript.xml"
+	SectionEnd
+
+	Section un.Go
+		Delete "$INSTDIR\autoCompletion\go.xml"
+	SectionEnd
+
+	Section un.Raku
+		Delete "$INSTDIR\autoCompletion\raku.xml"
+	SectionEnd
+
+	Section un.SAS
+		Delete "$INSTDIR\autoCompletion\sas.xml"
+	SectionEnd
+	
+	Section un.Rust
+		Delete "$INSTDIR\autoCompletion\rust.xml"
+	SectionEnd
+
+	Section un.D
+		Delete "$INSTDIR\autoCompletion\d.xml"
+	SectionEnd
+
 SectionGroupEnd

@@ -1,38 +1,33 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #pragma once
 
+#include <windows.h>
+
+#include <cstring>
+#include <vector>
+
+#include "ContextMenu.h"
 #include "SizeableDlg.h"
-#include "Common.h"
+#include "WinMgr.h"
 
 class DocTabView;
-class TiXmlNodeA;
+class Buffer;
 
 typedef enum {
 	WDT_ACTIVATE = 1,
@@ -44,11 +39,11 @@ typedef enum {
 
 struct NMWINDLG : public NMHDR {
 
-	BOOL processed;
-	WinDlgNotifyType type;
-	UINT curSel;
-	UINT nItems;
-	UINT *Items;
+	BOOL processed = FALSE;
+	WinDlgNotifyType type = WDT_ACTIVATE;
+	UINT curSel = 0;
+	UINT nItems = 0;
+	UINT *Items = 0;
 
 	// ctor: initialize to zeroes
 	NMWINDLG() { memset(this,0,sizeof(NMWINDLG)); }
@@ -61,58 +56,85 @@ class WindowsDlg : public SizeableDlg
 {
 	typedef SizeableDlg MyBaseClass;
 
-	class CachedValue
-	{
-		generic_string fullname;
-		int index;
-	};
-
 public :
 	WindowsDlg();
-	int doDialog(TiXmlNodeA *dlgNode);
+	int doDialog();
 	virtual void init(HINSTANCE hInst, HWND parent, DocTabView *pTab);
+	void doSortToTabs();
+	void doSort();
+	void sort(int columnID, bool reverseSort);
+	void sortFileNameASC();
+	void sortFileNameDSC();
+	void sortFilePathASC();
+	void sortFilePathDSC();
+	void sortFileTypeASC();
+	void sortFileTypeDSC();
+	void sortFileSizeASC();
+	void sortFileSizeDSC();
+	void sortDateTimeASC();
+	void sortDateTimeDSC();
+	void doRefresh();
 
-	void doRefresh(bool invalidate = false);
-	bool changeDlgLang();
+public:
+	// for message hook
+	static HHOOK _hMsgHook;
+	static HWND _hThisDlg;
+
+	static LRESULT CALLBACK getMsgProc(int code, WPARAM wParam, LPARAM lParam);
+	void initMessageHook() {
+		_hMsgHook = SetWindowsHookEx(WH_GETMESSAGE, getMsgProc, nullptr, GetCurrentThreadId());
+	}
+	void removeMessageHook() {
+		if (_hMsgHook) {
+			UnhookWindowsHookEx(_hMsgHook);
+			_hMsgHook = nullptr;
+		}
+	}
 
 protected :
-	virtual INT_PTR CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam);
-	virtual BOOL onInitDialog();
-	virtual void onSize(UINT nType, int cx, int cy);
-	virtual void onGetMinMaxInfo(MINMAXINFO* lpMMI);
-	virtual LRESULT onWinMgr(WPARAM wp, LPARAM lp);
-	virtual void destroy();
-	void fitColumnsToSize();
+	intptr_t CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	BOOL onInitDialog() override;
+	void onSize(UINT nType, int cx, int cy) override;
+	LRESULT onWinMgr(WPARAM wp, LPARAM lp) override;
+	void destroy() override;
+	void updateColumnNames() const;
+	void fitColumnsToSize() const;
 	void resetSelection();
 	void doSave();
 	void doClose();
-	void doSortToTabs();
 	void updateButtonState();
 	void activateCurrent();
+	void doColumnSort();
+	void doCount();
+	void refreshMap();
+	void putItemsToClipboard(bool isFullPath);
+	Buffer* getBuffer(int index) const;
 
 	HWND _hList = nullptr;
 	static RECT _lastKnownLocation;
-	SIZE _szMinButton;
-	SIZE _szMinListCtrl;
-	DocTabView *_pTab = nullptr;
+	SIZE _szMinButton = SIZEZERO;
+	SIZE _szMinListCtrl = SIZEZERO;
+	DocTabView* _pTab = nullptr;
 	std::vector<int> _idxMap;
+	int _currentColumn = -1;
 	int _lastSort = -1;
-	bool _isSorted = false;
-	TiXmlNodeA *_dlgNode = nullptr;
+	bool _reverseSort = false;
+	ContextMenu _listMenu;
 
 private:
-	virtual void init(HINSTANCE hInst, HWND parent);	
+	void init(HINSTANCE hInst, HWND parent) override;
 };
 
 class WindowsMenu
 {
 public:
-	WindowsMenu();
-	~WindowsMenu();
-	void init(HINSTANCE hInst, HMENU hMainMenu, const TCHAR *translation); 
+	WindowsMenu() {}
+	~WindowsMenu() {}
+	void init(HMENU hMainMenu);
 	void initPopupMenu(HMENU hMenu, DocTabView *pTab);
 
 private:
-	HMENU _hMenu;
+	HMENU _hMenu = nullptr;
+	HMENU _hMenuList = nullptr;
+	UINT _limitPrev = 0;
 };
-

@@ -1,34 +1,23 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #include "trayIconControler.h"
 
-trayIconControler::trayIconControler(HWND hwnd, UINT uID, UINT uCBMsg, HICON hicon, TCHAR *tip)
+trayIconControler::trayIconControler(HWND hwnd, UINT uID, UINT uCBMsg, HICON hicon, const wchar_t *tip)
 {
   _nid.cbSize = sizeof(_nid);
   _nid.hWnd = hwnd;
@@ -36,19 +25,36 @@ trayIconControler::trayIconControler(HWND hwnd, UINT uID, UINT uCBMsg, HICON hic
   _nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
   _nid.uCallbackMessage = uCBMsg;
   _nid.hIcon = hicon;
-  lstrcpy(_nid.szTip, tip);
+  wcscpy_s(_nid.szTip, tip);
   
-  ::RegisterWindowMessage(TEXT("TaskbarCreated"));
-  _isIconShowed = false;
+  _isIconShown = false;
 }
 
 int trayIconControler::doTrayIcon(DWORD op)
 {
-  if ((op != ADD)&&(op != REMOVE)) return INCORRECT_OPERATION;
-  if (((_isIconShowed)&&(op == ADD))||((!_isIconShowed)&&(op == REMOVE)))
+  if (op != ADD && op != REMOVE)
+      return INCORRECT_OPERATION;
+
+  if ((_isIconShown && op == ADD) || (!_isIconShown && op == REMOVE))
     return OPERATION_INCOHERENT;
+
   ::Shell_NotifyIcon(op, &_nid);
-  _isIconShowed = !_isIconShowed;
+  _isIconShown = !_isIconShown;
 
   return 0;
+}
+
+int trayIconControler::reAddTrayIcon()
+{
+    if (!_isIconShown)
+        return -1;
+
+    // we only re-add the tray icon when it has been lost and no longer exists,
+    // but we still delete it first to ensure it's not duplicated 
+    // due to an incorrect call or something
+    ::Shell_NotifyIcon(NIM_DELETE, &_nid);
+
+    // reset state and re-add tray icon
+    _isIconShown = false;
+    return doTrayIcon(ADD);
 }

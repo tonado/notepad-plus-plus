@@ -1,30 +1,18 @@
-// this file is part of docking functionality for Notepad++
+// This file is part of Notepad++ project
 // Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid
-// misunderstandings, we consider an application to constitute a
-// "derivative work" for the purpose of this license if it does any of the
-// following:
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #include <stdexcept>
@@ -35,58 +23,37 @@
 BOOL DockingSplitter::_isVertReg = FALSE;
 BOOL DockingSplitter::_isHoriReg = FALSE;
 
-static HWND		hWndMouse		= NULL;
-static HHOOK	hookMouse		= NULL;
-
-#ifndef WH_MOUSE_LL
-#define WH_MOUSE_LL 14
-#endif
-
-static LRESULT CALLBACK hookProcMouse(UINT nCode, WPARAM wParam, LPARAM lParam)
+void DockingSplitter::init(HINSTANCE hInst, HWND hParent, HWND hMessage, UINT flags)
 {
-    if(nCode >= 0)
-    {
-		switch (wParam)
-		{
-			case WM_MOUSEMOVE:
-			case WM_NCMOUSEMOVE:
-				::PostMessage(hWndMouse, static_cast<UINT>(wParam), 0, 0);
-				break;
-			case WM_LBUTTONUP:
-			case WM_NCLBUTTONUP:
-				::PostMessage(hWndMouse, static_cast<UINT>(wParam), 0, 0);
-				return TRUE;
-			default:
-				break;
-		}
-	}
-
-	return ::CallNextHookEx(hookMouse, nCode, wParam, lParam);
-}
-
-void DockingSplitter::init(HINSTANCE hInst, HWND hWnd, HWND hMessage, UINT flags)
-{
-	Window::init(hInst, hWnd);
+	Window::init(hInst, hParent);
 	_hMessage = hMessage;
 	_flags = flags;
+}
 
-	WNDCLASS wc;
+void DockingSplitter::create()
+{
+	if (_hSelf != nullptr)
+		return;
 
-	if (flags & DMS_HORIZONTAL)
+	WNDCLASS wc{};
+	DWORD hwndExStyle = static_cast<DWORD>(::GetWindowLongPtr(_hParent, GWL_EXSTYLE));
+	_isRTL = hwndExStyle & WS_EX_LAYOUTRTL;
+
+	if (_flags & DMS_HORIZONTAL)
 	{
 		//double sided arrow pointing north-south as cursor
-		wc.hCursor			= ::LoadCursor(NULL,IDC_SIZENS);
-		wc.lpszClassName	= TEXT("nsdockspliter");
+		wc.hCursor = ::LoadCursor(NULL, IDC_SIZENS);
+		wc.lpszClassName = L"nsdockspliter";
 	}
 	else
 	{
 		// double sided arrow pointing east-west as cursor
-		wc.hCursor			= ::LoadCursor(NULL,IDC_SIZEWE);
-		wc.lpszClassName	= TEXT("wedockspliter");
+		wc.hCursor = ::LoadCursor(NULL, IDC_SIZEWE);
+		wc.lpszClassName = L"wedockspliter";
 	}
 
-	if (((_isHoriReg == FALSE) && (flags & DMS_HORIZONTAL)) ||
-		((_isVertReg == FALSE) && (flags & DMS_VERTICAL)))
+	if (((_isHoriReg == FALSE) && (_flags & DMS_HORIZONTAL)) ||
+		((_isVertReg == FALSE) && (_flags & DMS_VERTICAL)))
 	{
 		wc.style = CS_HREDRAW | CS_VREDRAW;
 		wc.lpfnWndProc = staticWinProc;
@@ -94,35 +61,44 @@ void DockingSplitter::init(HINSTANCE hInst, HWND hWnd, HWND hMessage, UINT flags
 		wc.cbWndExtra = 0;
 		wc.hInstance = _hInst;
 		wc.hIcon = NULL;
-		wc.hbrBackground = (HBRUSH)(COLOR_3DFACE+1);
+		wc.hbrBackground = ::GetSysColorBrush(COLOR_3DFACE);
 		wc.lpszMenuName = NULL;
 
 		if (!::RegisterClass(&wc))
 		{
-			throw std::runtime_error("DockingSplitter::init : RegisterClass() function failed");
+			throw std::runtime_error("DockingSplitter::create : RegisterClass() function failed");
 		}
-		else if (flags & DMS_HORIZONTAL)
+		else if (_flags & DMS_HORIZONTAL)
 		{
-			_isHoriReg	= TRUE;
+			_isHoriReg = TRUE;
 		}
 		else
 		{
-			_isVertReg	= TRUE;
+			_isVertReg = TRUE;
 		}
 	}
 
 	/* create splitter windows and initialize it */
-	_hSelf = ::CreateWindowEx( 0, wc.lpszClassName, TEXT(""), WS_CHILD | WS_VISIBLE,
-								CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-								_hParent, NULL, _hInst, (LPVOID)this);
+	// Create without WS_VISIBLE to avoid initial flashing before positioning
+	_hSelf = ::CreateWindowEx(0, wc.lpszClassName, L"", WS_CHILD,
+		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+		_hParent, NULL, _hInst, static_cast<LPVOID>(this));
 
 	if (!_hSelf)
 	{
-		throw std::runtime_error("DockingSplitter::init : CreateWindowEx() function return null");
+		throw std::runtime_error("DockingSplitter::create : CreateWindowEx() function return null");
 	}
 }
 
-
+void DockingSplitter::reSizeTo(RECT& rc)
+{
+	// Lazily create the window when positioning for an active container
+	if (_hSelf == nullptr)
+	{
+		create();
+	}
+	Window::reSizeTo(rc);
+}
 
 LRESULT CALLBACK DockingSplitter::staticWinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -130,7 +106,7 @@ LRESULT CALLBACK DockingSplitter::staticWinProc(HWND hwnd, UINT message, WPARAM 
 	switch (message)
 	{
 		case WM_NCCREATE :
-			pDockingSplitter = reinterpret_cast<DockingSplitter *>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams);
+			pDockingSplitter = static_cast<DockingSplitter *>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams);
 			pDockingSplitter->_hSelf = hwnd;
 			::SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pDockingSplitter));
 			return TRUE;
@@ -150,34 +126,15 @@ LRESULT DockingSplitter::runProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	{
 		case WM_LBUTTONDOWN:
 		{
-			hWndMouse = hwnd;
-			hookMouse = ::SetWindowsHookEx(WH_MOUSE_LL, reinterpret_cast<HOOKPROC>(hookProcMouse), _hInst, 0);
-			if (!hookMouse)
-			{
-				DWORD dwError = ::GetLastError();
-				TCHAR  str[128];
-				::wsprintf(str, TEXT("GetLastError() returned %lu"), dwError);
-				::MessageBox(NULL, str, TEXT("SetWindowsHookEx(MOUSE) failed on runProc"), MB_OK | MB_ICONERROR);
-			}
-			else
-			{
-				::SetCapture(_hSelf);
-				::GetCursorPos(&_ptOldPos);
-				_isLeftButtonDown = TRUE;
-			}
-
+			::SetCapture(_hSelf);
+			::GetCursorPos(&_ptOldPos);
+			_isLeftButtonDown = TRUE;
 			break;
 		}
 		case WM_LBUTTONUP:
 		case WM_NCLBUTTONUP:
 		{
-			/* end hooking */
-			if (hookMouse)
-			{
-				::UnhookWindowsHookEx(hookMouse);
-				::SetCapture(NULL);
-				hookMouse = NULL;
-			}
+			::ReleaseCapture();
 			_isLeftButtonDown = FALSE;
 			break;
 		}
@@ -186,7 +143,7 @@ LRESULT DockingSplitter::runProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		{
 			if (_isLeftButtonDown == TRUE)
 			{
-				POINT	pt;
+				POINT pt{};
 
 				::GetCursorPos(&pt);
 
@@ -196,11 +153,23 @@ LRESULT DockingSplitter::runProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 				}
 				else if (_ptOldPos.x != pt.x)
 				{
-					::SendMessage(_hMessage, DMM_MOVE_SPLITTER, _ptOldPos.x - pt.x, reinterpret_cast<LPARAM>(_hSelf));
+					::SendMessage(_hMessage, DMM_MOVE_SPLITTER, _isRTL ? pt.x - _ptOldPos.x : _ptOldPos.x - pt.x, reinterpret_cast<LPARAM>(_hSelf));
 				}
 				_ptOldPos = pt;
 			}
 			break;
+		}
+		case WM_ERASEBKGND:
+		{
+			if (!NppDarkMode::isEnabled())
+			{
+				break;
+			}
+
+			RECT rc{};
+			::GetClientRect(hwnd, &rc);
+			::FillRect(reinterpret_cast<HDC>(wParam), &rc, NppDarkMode::getDlgBackgroundBrush());
+			return TRUE;
 		}
 		default :
 			break;

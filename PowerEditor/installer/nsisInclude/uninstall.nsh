@@ -1,75 +1,85 @@
-; this file is part of installer for Notepad++
-; Copyright (C)2016 Don HO <don.h@free.fr>
+; This file is part of Notepad++ project
+; Copyright (C)2021 Don HO <don.h@free.fr>
 ;
-; This program is free software; you can redistribute it and/or
-; modify it under the terms of the GNU General Public License
-; as published by the Free Software Foundation; either
-; version 2 of the License, or (at your option) any later version.
-;
-; Note that the GPL places important restrictions on "derived works", yet
-; it does not provide a detailed definition of that term.  To avoid      
-; misunderstandings, we consider an application to constitute a          
-; "derivative work" for the purpose of this license if it does any of the
-; following:                                                             
-; 1. Integrates source code from Notepad++.
-; 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-;    installer, such as those produced by InstallShield.
-; 3. Links to a library or executes a program that does any of the above.
+; This program is free software: you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation, either version 3 of the License, or
+; at your option any later version.
 ;
 ; This program is distributed in the hope that it will be useful,
 ; but WITHOUT ANY WARRANTY; without even the implied warranty of
-; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 ; GNU General Public License for more details.
-; 
+;
 ; You should have received a copy of the GNU General Public License
-; along with this program; if not, write to the Free Software
-; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-Var themesParentPath
+Var installPath
 Var doLocalConf
 Var keepUserData
+
 Function un.onInit
-	StrCpy $keepUserData "false"	; default value(It is must, otherwise few files such as shortcuts.xml, contextMenu.xml etc, will not be removed when $INSTDIR\doLocalConf.xml is not avaliable.)
+
+!ifdef ARCH64 || ARCHARM64 ; x64 or ARM64 : installation of 64 bits Notepad++ & its 64 bits components
+	StrCpy $winSysDir "$WINDIR\System32"
+!else ; installation of 32 bits Notepad++ & its 32 bits components
+	StrCpy $winSysDir "$WINDIR\SysWOW64"
+!endif
+
+	StrCpy $keepUserData "false"	; default value(It is must, otherwise few files such as shortcuts.xml, contextMenu.xml etc, will not be removed when $INSTDIR\doLocalConf.xml is not available.)
 	; determinate theme path for uninstall themes
-	StrCpy $themesParentPath "$APPDATA\${APPNAME}"
+	StrCpy $installPath "$APPDATA\${APPNAME}"
 	StrCpy $doLocalConf "false"
 	IfFileExists $INSTDIR\doLocalConf.xml doesExist noneExist
+
 doesExist:
-	StrCpy $themesParentPath $INSTDIR
+	StrCpy $installPath $INSTDIR
 	StrCpy $doLocalConf "true"
 noneExist:
 	;MessageBox MB_OK "doLocalConf == $doLocalConf"
+
+	Call un.setPathAndOptions
 FunctionEnd
 
 Function un.onUninstSuccess
 	; make sure all the empty folders are deleted on successful uninstall
-	; These folders will be deleted only if they are emtpy
+	; These folders will be deleted only if they are empty
 	RMDir "$INSTDIR\localization\"
 	RMDir "$INSTDIR\plugins\APIs\"
 	RMDir "$INSTDIR\plugins\disabled\"
 	RMDir "$INSTDIR\plugins\"
 	RMDir "$INSTDIR\updater\"
+	RMDir "$INSTDIR\autoCompletion\"
+	RMDir "$INSTDIR\functionList\"
+	RMDir "$INSTDIR\themes\"
+	RMDir "$INSTDIR\contextmenu\"
 	RMDir "$INSTDIR\"
 
 	RMDir "$APPDATA\${APPNAME}\plugins\"
-	RMDir "$themesParentPath\themes\"	; if files are kept because of $keepUserData, this will not be deleted
-	RMDir "$themesParentPath\"
+	RMDir "$installPath\themes\"	; if files are kept because of $keepUserData, this will not be deleted
+	RMDir "$installPath\userDefineLangs\"
+	RMDir "$installPath\contextmenu\"
+	RMDir "$installPath\"
 FunctionEnd
 
 
 Section un.explorerContextMenu
-	Exec 'regsvr32 /u /s "$INSTDIR\NppShell_01.dll"'
-	Exec 'regsvr32 /u /s "$INSTDIR\NppShell_02.dll"'
-	Exec 'regsvr32 /u /s "$INSTDIR\NppShell_03.dll"'
-	Exec 'regsvr32 /u /s "$INSTDIR\NppShell_04.dll"'
-	Exec 'regsvr32 /u /s "$INSTDIR\NppShell_05.dll"'
-	Exec 'regsvr32 /u /s "$INSTDIR\NppShell_06.dll"'
-	Delete "$INSTDIR\NppShell_01.dll"
-	Delete "$INSTDIR\NppShell_02.dll"
-	Delete "$INSTDIR\NppShell_03.dll"
-	Delete "$INSTDIR\NppShell_04.dll"
-	Delete "$INSTDIR\NppShell_05.dll"
-	Delete "$INSTDIR\NppShell_06.dll"
+	
+!ifdef ARCH64 || ARCHARM64
+	IfFileExists "$INSTDIR\contextmenu\NppShell.dll" 0 +2
+		ExecWait '"$winSysDir\rundll32.exe" "$INSTDIR\contextmenu\NppShell.dll",CleanupDll'
+	SetRegView 64
+!else
+	ExecWait '"$winSysDir\regsvr32.exe" /u /s "$INSTDIR\contextmenu\NppShell.dll"'
+	SetRegView 32
+!endif
+
+    DeleteRegKey HKCR "*\shell\ANotepad++64"
+    DeleteRegKey HKCR "CLSID\{B298D29A-A6ED-11DE-BA8C-A68E55D89593}"
+
+    Delete "$INSTDIR\contextmenu\NppShell.dll"
+    Delete "$INSTDIR\contextmenu\NppShell.msix"
+    RMDir  "$INSTDIR\contextmenu"
 SectionEnd
 
 Section un.UnregisterFileExt
@@ -146,13 +156,18 @@ FunctionEnd
 	;Remove from registry...
 !ifdef ARCH64
 	SetRegView 32
+!else ifdef ARCHARM64
+	SetRegView 32
 !else
 	SetRegView 64
 !endif
+
 	DeleteRegKey HKLM "${UNINSTALL_REG_KEY}"
-	;DeleteRegKey HKLM "SOFTWARE\${APPNAME}"
-	;DeleteRegKey HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\notepad++.exe"
+	DeleteRegKey HKLM "SOFTWARE\${APPNAME}"
+
 !ifdef ARCH64
+	SetRegView 64
+!else ifdef ARCHARM64
 	SetRegView 64
 !else
 	SetRegView 32
@@ -170,17 +185,16 @@ FunctionEnd
 		SetShellVarContext all
 	
 	Delete "$DESKTOP\Notepad++.lnk"
+	Delete "$SMPROGRAMS\Notepad++.lnk"
 	Delete "$SMPROGRAMS\Notepad++\Notepad++.lnk"
 	Delete "$SMPROGRAMS\Notepad++\readme.lnk"
 
-	
 	RMDir /r "${dir2remove}"
-	
 !macroend
 
 
 Section Uninstall
-!ifdef ARCH64
+!ifdef ARCH64 || ARCHARM64
 	SetRegView 64
 !else
 	SetRegView 32
@@ -203,6 +217,7 @@ Section Uninstall
 		SetShellVarContext all ; make context for all user
 	
 	Delete "$DESKTOP\Notepad++.lnk"
+	Delete "$SMPROGRAMS\Notepad++.lnk"
 	Delete "$SMPROGRAMS\${APPNAME}\Notepad++.lnk"
 	Delete "$SMPROGRAMS\${APPNAME}\readme.lnk"
 	
@@ -224,16 +239,21 @@ Section Uninstall
 		Delete "$INSTDIR\langs.xml"
 		Delete "$INSTDIR\stylers.xml"
 		Delete "$INSTDIR\contextMenu.xml"
+		Delete "$INSTDIR\tabContextMenu.xml"
 		Delete "$INSTDIR\shortcuts.xml"
 		Delete "$INSTDIR\functionList.xml"
 		Delete "$INSTDIR\session.xml"
 		Delete "$INSTDIR\nativeLang.xml"
 		Delete "$INSTDIR\userDefineLang.xml"
+		Delete "$INSTDIR\nppLogNulContentCorruptionIssue.xml"
+		Delete "$INSTDIR\toolbarIcons.xml"
 	${endIf}
 	
 	Delete "$INSTDIR\config.model.xml"
 	Delete "$INSTDIR\langs.model.xml"
 	Delete "$INSTDIR\stylers.model.xml"
+	Delete "$INSTDIR\tabContextMenu_example.xml"
+	Delete "$INSTDIR\toolbarButtonsConf_example.xml"
 	Delete "$INSTDIR\stylers_remove.xml"
 	Delete "$INSTDIR\localization\english.xml"
 	Delete "$INSTDIR\LINEDRAW.TTF"
@@ -242,7 +262,12 @@ Section Uninstall
 	Delete "$INSTDIR\SourceCodePro-It.ttf"
 	Delete "$INSTDIR\SourceCodePro-BoldIt.ttf"
 	Delete "$INSTDIR\NppHelp.chm"
+	Delete "$INSTDIR\userDefinedLang-markdown.default.modern.xml"
+	Delete "$INSTDIR\userDefineLangs\userDefinedLang-markdown.default.modern.xml"
+	Delete "$INSTDIR\userDefineLangs\markdown._preinstalled.udl.xml"
+	Delete "$INSTDIR\userDefineLangs\markdown._preinstalled_DM.udl.xml"
 	Delete "$INSTDIR\doLocalConf.xml"
+	Delete "$INSTDIR\uninstall.ini"
 	
 	${If} $doLocalConf == "false"
 		Call un.doYouReallyWantToKeepData
@@ -261,11 +286,17 @@ Section Uninstall
 		Delete "$APPDATA\${APPNAME}\session.xml"
 		Delete "$APPDATA\${APPNAME}\userDefineLang.xml"
 		Delete "$APPDATA\${APPNAME}\insertExt.ini"
-	
+		Delete "$APPDATA\${APPNAME}\nppLogNulContentCorruptionIssue.log"
+		Delete "$APPDATA\${APPNAME}\tabContextMenu_example.xml"
+		Delete "$APPDATA\${APPNAME}\toolbarButtonsConf_example.xml"
+		Delete "$APPDATA\${APPNAME}\toolbarIcons.xml"
+		Delete "$APPDATA\${APPNAME}\userDefineLangs\userDefinedLang-markdown.default.modern.xml"
+		Delete "$APPDATA\${APPNAME}\userDefineLangs\markdown._preinstalled.udl.xml"
+		Delete "$APPDATA\${APPNAME}\userDefineLangs\markdown._preinstalled_DM.udl.xml"
 		RMDir /r "$APPDATA\${APPNAME}\plugins\"
 		RMDir /r "$APPDATA\${APPNAME}\backup\"	; Remove backup folder recursively if not empty
-		RMDir "$APPDATA\${APPNAME}\themes\"	; has no effect as not empty at this momenet, but it is taken care at un.onUninstSuccess
-		RMDir "$APPDATA\${APPNAME}"		; has no effect as not empty at this momenet, but it is taken care at un.onUninstSuccess
+		RMDir "$APPDATA\${APPNAME}\themes\"	; has no effect as not empty at this moment, but it is taken care at un.onUninstSuccess
+		RMDir "$APPDATA\${APPNAME}"		; has no effect as not empty at this moment, but it is taken care at un.onUninstSuccess
 		
 		StrCmp $1 "Admin" 0 +2
 			SetShellVarContext all ; make context for all user
@@ -277,6 +308,8 @@ Section Uninstall
 	RMDir "$INSTDIR\plugins\"
 	RMDir "$INSTDIR\themes\"
 	RMDir "$INSTDIR\localization\"
+	RMDir "$INSTDIR\functionList\"
+	RMDir "$INSTDIR\contextmenu\"
 	RMDir "$INSTDIR\"
 	RMDir "$SMPROGRAMS\${APPNAME}"
 

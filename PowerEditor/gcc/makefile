@@ -1,276 +1,387 @@
-# this file is part of notepad++
-# Copyright (C)2008 Harry Bruin <harrybharry@users.sourceforge.net>
+# This file is part of Notepad++ project
+# Copyright (C)2021 Ivan U7n <jprofic@yandex.ru>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either
-# version 2 of the License, or (at your option) any later version.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# at your option any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# Directories:
-NPP_DIR			= ../src
-SCI_DIR			= ../../scintilla/include
-GCC_DIR			= .
-GCCINCLUDE_DIR  = $(GCC_DIR)/include
+#
+# definitions
+#
 
-#MISC:
-MISC_DIR		= $(NPP_DIR)/MISC
- COMMON_DIR		= $(MISC_DIR)/Common
- EXCEPTION_DIR	= $(MISC_DIR)/Exception
- PLUGINS_DIR	= $(MISC_DIR)/PluginsManager
- PROCESS_DIR	= $(MISC_DIR)/Process
- REGEXT_DIR		= $(MISC_DIR)/RegExt
+MAKEFILE_ABS_DIR = $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-#ScintillaComponent:
-SCINT_DIR		= $(NPP_DIR)/ScitillaComponent
+GCC_DIRECTORY := ../gcc
+GCC_EXCLUDE := $(GCC_DIRECTORY)/gcc-%
+SRC_DIRECTORY := ../src
+SRC_EXCLUDE := $(SRC_DIRECTORY)/tools/%
+BIN_DIRECTORY := ../bin
+INSTALLER_DIRECTORY := ../installer
+XML4CONF_DIRECTORY := ../installer/xml4Config
 
-#TinyXml
-TIXML_DIR		= $(NPP_DIR)/TinyXml
- TIXMLA_DIR		= $(TIXML_DIR)/tinyXmlA
+TARGET_BINARY := notepad++.exe
+SRC_DATA := langs.model.xml stylers.model.xml tabContextMenu_example.xml toolbarButtonsConf_example.xml
+BIN_DATA := change.log readme.txt userDefineLangs/
+INSTALLER_DATA := autoCompletion/ functionList/ localization/ themes/
+XML4CONF_DATA := doLocalConf.xml disableNppAutoUpdate.xml
 
-#uchardet
-UCHARDET_DIR	= $(NPP_DIR)/uchardet
+SCINTILLA_DIRECTORY := ../../scintilla
+SCINTILLA_TARGET := libscintilla.a
 
-#WinControls
-WIN_DIR			= $(NPP_DIR)/WinControls
- ABOUT_DIR		= $(WIN_DIR)/AboutDlg
- ANSICHAR_DIR	= $(WIN_DIR)/AnsiCharPanel
- CLIPBOARD_DIR	= $(WIN_DIR)/ClipboardHistory
- CONTEXT_DIR	= $(WIN_DIR)/ContextMenu
- COLOUR_DIR		= $(WIN_DIR)/ColourPicker
- DOCKING_DIR	= $(WIN_DIR)/DockingWnd
- DOCMAP_DIR		= $(WIN_DIR)/DocumentMap
- FBROWSER_DIR	= $(WIN_DIR)/FileBrowser
- FINDCHARS_DIR	= $(WIN_DIR)/FindCharsInRange
- FUNCLIST_DIR	= $(WIN_DIR)/FunctionList
- GRID_DIR		= $(WIN_DIR)/Grid
- IMLIST_DIR		= $(WIN_DIR)/ImageListSet
- OPENSAVE_DIR	= $(WIN_DIR)/OpenSaveFileDialog
- PREFERENCE_DIR	= $(WIN_DIR)/Preference
- PRJPANEL_DIR	= $(WIN_DIR)/ProjectPanel
- READDIR_DIR	= $(WIN_DIR)/ReadDirectoryChanges
- SHORTCUT_DIR	= $(WIN_DIR)/shortcut
- SPLITTER_DIR	= $(WIN_DIR)/SplitterContainer
- STATICDLG_DIR	= $(WIN_DIR)/StaticDialog
-  RUNDLG_DIR	= $(STATICDLG_DIR)/RunDlg
- STATUSBAR_DIR	= $(WIN_DIR)/StatusBar
- TABBAR_DIR		= $(WIN_DIR)/TabBar
- TASKLIST_DIR	= $(WIN_DIR)/TaskList
- TOOLBAR_DIR	= $(WIN_DIR)/ToolBar
- TOOLTIP_DIR	= $(WIN_DIR)/ToolTip
- TRAYICON_DIR	= $(WIN_DIR)/TrayIcon
- # NOT USED TREEVIEW_DIR	= $(WIN_DIR)/TreeView
- VERTFILE_DIR	= $(WIN_DIR)/VerticalFileSwitcher
- WINDOWSDLG_DIR	= $(WIN_DIR)/WindowsDlg
+LEXILLA_DIRECTORY := ../../lexilla
+LEXILLA_TARGET := liblexilla.a
 
-
-# Sources:
-SRC_NPP			= $(wildcard $(NPP_DIR)/*.cpp)
-SRC_GCCINCLUDE  = $(wildcard $(GCCINCLUDE_DIR)/*.cpp)
-
-#MISC
-SRC_MISC		= $(wildcard $(MISC_DIR)/*.cpp)
- SRC_COMMON		= $(wildcard $(COMMON_DIR)/*.cpp)
- SRC_EXCEPTION	= $(wildcard $(EXCEPTION_DIR)/*.cpp)
- SRC_PLUGINS	= $(wildcard $(PLUGINS_DIR)/*.cpp)
- SRC_PROCESS	= $(wildcard $(PROCESS_DIR)/*.cpp)
- SRC_REGEXT		= $(wildcard $(REGEXT_DIR)/*.cpp)
-
-#ScintillaComponent
-SRC_SCINT		= $(wildcard $(SCINT_DIR)/*.cpp)
-
-#TinyXml
-SRC_TIXML		= $(wildcard $(TIXML_DIR)/*.cpp)
- SRC_TIXMLA		= $(wildcard $(TIXMLA_DIR)/*.cpp)
-
-#uchardet
-SRC_UCHARDET	= $(wildcard $(UCHARDET_DIR)/*.cpp)
-
-#WinControls
-SRC_WIN			= $(wildcard $(WIN_DIR)/*.cpp)
- SRC_ABOUT		= $(wildcard $(ABOUT_DIR)/*.cpp)
- SRC_ANSICHAR	= $(wildcard $(ANSICHAR_DIR)/*.cpp)
- SRC_CLIPBOARD	= $(wildcard $(CLIPBOARD_DIR)/*.cpp)
- SRC_CONTEXT	= $(wildcard $(CONTEXT_DIR)/*.cpp)
- SRC_COLOUR		= $(wildcard $(COLOUR_DIR)/*.cpp)
- SRC_DOCKING	= $(wildcard $(DOCKING_DIR)/*.cpp)
- SRC_DOCMAP		= $(wildcard $(DOCMAP_DIR)/*.cpp)
- SRC_FBROWSER	= $(wildcard $(FBROWSER_DIR)/*.cpp) 
- SRC_FINDCHARS	= $(wildcard $(FINDCHARS_DIR)/*.cpp)
- SRC_FUNCLIST	= $(wildcard $(FUNCLIST_DIR)/*.cpp)
- SRC_GRID		= $(wildcard $(GRID_DIR)/*.cpp)
- SRC_IMLIST		= $(wildcard $(IMLIST_DIR)/*.cpp)
- SRC_OPENSAVE	= $(wildcard $(OPENSAVE_DIR)/*.cpp)
- SRC_PREFERENCE	= $(wildcard $(PREFERENCE_DIR)/*.cpp)
- SRC_PRJPANEL	= $(wildcard $(PRJPANEL_DIR)/*.cpp)
- SRC_READDIR	= $(wildcard $(READDIR_DIR)/*.cpp)
- SRC_SHORTCUT	= $(wildcard $(SHORTCUT_DIR)/*.cpp)
- SRC_SPLITTER	= $(wildcard $(SPLITTER_DIR)/*.cpp)
- SRC_STATICDLG	= $(wildcard $(STATICDLG_DIR)/*.cpp)
-  SRC_RUNDLG	= $(wildcard $(RUNDLG_DIR)/*.cpp)
- SRC_STATUSBAR	= $(wildcard $(STATUSBAR_DIR)/*.cpp)
- SRC_TABBAR		= $(wildcard $(TABBAR_DIR)/*.cpp)
- SRC_TASKLIST	= $(wildcard $(TASKLIST_DIR)/*.cpp)
- SRC_TOOLBAR	= $(wildcard $(TOOLBAR_DIR)/*.cpp)
- SRC_TOOLTIP	= $(wildcard $(TOOLTIP_DIR)/*.cpp)
- SRC_TRAYICON	= $(wildcard $(TRAYICON_DIR)/*.cpp)
- SRC_VERTFILE	= $(wildcard $(VERTFILE_DIR)/*.cpp)
- SRC_WINDOWSDLG	= $(wildcard $(WINDOWSDLG_DIR)/*.cpp)
-
-# Objects:
-OBJ_NPP			= $(patsubst %.cpp,%.o,$(SRC_NPP))
-OBJ_GCCINCLUDE  = $(patsubst %.cpp,%.o,$(SRC_GCCINCLUDE))
-
-#MISC
-OBJ_MISC		= $(patsubst %.cpp,%.o,$(SRC_MISC))
- OBJ_COMMON		= $(patsubst %.cpp,%.o,$(SRC_COMMON))
- OBJ_EXCEPTION	= $(patsubst %.cpp,%.o,$(SRC_EXCEPTION))
- OBJ_PLUGINS	= $(patsubst %.cpp,%.o,$(SRC_PLUGINS))
- OBJ_PROCESS	= $(patsubst %.cpp,%.o,$(SRC_PROCESS))
- OBJ_REGEXT		= $(patsubst %.cpp,%.o,$(SRC_REGEXT))
-
-#ScintillaComponent
-OBJ_SCINT		= $(patsubst %.cpp,%.o,$(SRC_SCINT))
-
-#TinyXml
-OBJ_TIXML		= $(patsubst %.cpp,%.o,$(SRC_TIXML))
- OBJ_TIXMLA		= $(patsubst %.cpp,%.o,$(SRC_TIXMLA))
-
-#uchardet
-OBJ_UCHARDET	= $(patsubst %.cpp,%.o,$(SRC_UCHARDET))
-
-#WinControls
-OBJ_WIN			= $(patsubst %.cpp,%.o,$(SRC_WIN))
- OBJ_ABOUT		= $(patsubst %.cpp,%.o,$(SRC_ABOUT))
- OBJ_ANSICHAR	= $(patsubst %.cpp,%.o,$(SRC_ANSICHAR))
- OBJ_CLIPBOARD	= $(patsubst %.cpp,%.o,$(SRC_CLIPBOARD))
- OBJ_CONTEXT	= $(patsubst %.cpp,%.o,$(SRC_CONTEXT))
- OBJ_COLOUR		= $(patsubst %.cpp,%.o,$(SRC_COLOUR))
- OBJ_DOCKING	= $(patsubst %.cpp,%.o,$(SRC_DOCKING))
- OBJ_DOCMAP		= $(patsubst %.cpp,%.o,$(SRC_DOCMAP))
- OBJ_FBROWSER	= $(patsubst %.cpp,%.o,$(SRC_FBROWSER))
- OBJ_FINDCHARS	= $(patsubst %.cpp,%.o,$(SRC_FINDCHARS))
- OBJ_FUNCLIST	= $(patsubst %.cpp,%.o,$(SRC_FUNCLIST))
- OBJ_GRID		= $(patsubst %.cpp,%.o,$(SRC_GRID))
- OBJ_IMLIST		= $(patsubst %.cpp,%.o,$(SRC_IMLIST))
- OBJ_OPENSAVE	= $(patsubst %.cpp,%.o,$(SRC_OPENSAVE))
- OBJ_PREFERENCE	= $(patsubst %.cpp,%.o,$(SRC_PREFERENCE))
- OBJ_PRJPANEL	= $(patsubst %.cpp,%.o,$(SRC_PRJPANEL))
- OBJ_READDIR	= $(patsubst %.cpp,%.o,$(SRC_READDIR))
- OBJ_SHORTCUT	= $(patsubst %.cpp,%.o,$(SRC_SHORTCUT))
- OBJ_SPLITTER	= $(patsubst %.cpp,%.o,$(SRC_SPLITTER))
- OBJ_STATICDLG	= $(patsubst %.cpp,%.o,$(SRC_STATICDLG))
-  OBJ_RUNDLG	= $(patsubst %.cpp,%.o,$(SRC_RUNDLG))
- OBJ_STATUSBAR	= $(patsubst %.cpp,%.o,$(SRC_STATUSBAR))
- OBJ_TABBAR		= $(patsubst %.cpp,%.o,$(SRC_TABBAR))
- OBJ_TASKLIST	= $(patsubst %.cpp,%.o,$(SRC_TASKLIST))
- OBJ_TOOLBAR	= $(patsubst %.cpp,%.o,$(SRC_TOOLBAR))
- OBJ_TOOLTIP	= $(patsubst %.cpp,%.o,$(SRC_TOOLTIP))
- OBJ_TRAYICON	= $(patsubst %.cpp,%.o,$(SRC_TRAYICON))
- OBJ_VERTFILE	= $(patsubst %.cpp,%.o,$(SRC_VERTFILE))
- OBJ_WINDOWSDLG	= $(patsubst %.cpp,%.o,$(SRC_WINDOWSDLG))
-
-# Collections
-DIRS_WIN		= $(WIN_DIR) $(ABOUT_DIR) $(ANSICHAR_DIR) $(CLIPBOARD_DIR) $(CONTEXT_DIR) $(COLOUR_DIR) $(DOCKING_DIR) $(DOCMAP_DIR) $(FBROWSER_DIR) $(FINDCHARS_DIR) $(FUNCLIST_DIR) $(GRID_DIR) $(IMLIST_DIR) $(OPENSAVE_DIR) $(PREFERENCE_DIR) $(PRJPANEL_DIR) $(READDIR_DIR) $(SHORTCUT_DIR) $(SPLITTER_DIR) $(STATICDLG_DIR) $(RUNDLG_DIR) $(STATUSBAR_DIR) $(TABBAR_DIR) $(TASKLIST_DIR) $(TOOLBAR_DIR) $(TOOLTIP_DIR) $(TRAYICON_DIR) $(VERTFILE_DIR) $(WINDOWSDLG_DIR)
-DIRS_UCHARDET	= $(UCHARDET_DIR)
-DIRS_TIXML		= $(TIXML_DIR) $(TIXMLA_DIR)
-DIRS_SCINT		= $(SCINT_DIR)
-DIRS_MISC		= $(MISC_DIR) $(COMMON_DIR) $(EXCEPTION_DIR) $(PLUGINS_DIR) $(PROCESS_DIR) $(REGEXT_DIR)
-DIRS			= $(NPP_DIR) $(DIRS_WIN) $(DIRS_UCHARDET) $(DIRS_TIXML) $(DIRS_SCINT) $(DIRS_MISC) $(SCI_DIR)
-
-SRCS_WIN		= $(SRC_WIN) $(SRC_ABOUT) $(SRC_ANSICHAR) $(SRC_CLIPBOARD) $(SRC_CONTEXT) $(SRC_COLOUR) $(SRC_DOCKING) $(SRC_DOCMAP) $(SRC_FBROWSER) $(SRC_FINDCHARS) $(SRC_FUNCLIST) $(SRC_GRID) $(SRC_IMLIST) $(SRC_OPENSAVE) $(SRC_PREFERENCE) $(SRC_PRJPANEL) $(SRC_READDIR) $(SRC_SHORTCUT) $(SRC_SPLITTER) $(SRC_STATICDLG) $(SRC_RUNDLG) $(SRC_STATUSBAR) $(SRC_TABBAR) $(SRC_TASKLIST) $(SRC_TOOLBAR) $(SRC_TOOLTIP) $(SRC_TRAYICON) $(SRC_VERTFILE) $(SRC_WINDOWSDLG)
-SRCS_UCHARDET	= $(SRC_UCHARDET)
-SRCS_TIXML		= $(SRC_TIXML) $(SRC_TIXMLA)
-SRCS_SCINT		= $(SRC_SCINT)
-SRCS_MISC		= $(SRC_MISC) $(SRC_COMMON) $(SRC_EXCEPTION) $(SRC_PLUGINS) $(SRC_PROCESS) $(SRC_REGEXT)
-SRCS			= $(SRC_NPP) $(SRCS_WIN) $(SRCS_UCHARDET) $(SRCS_TIXML) $(SRCS_SCINT) $(SRCS_MISC) $(SRC_GCCINCLUDE)
-
-OBJS_WIN		= $(OBJ_WIN) $(OBJ_ABOUT) $(OBJ_ANSICHAR) $(OBJ_CLIPBOARD) $(OBJ_CONTEXT) $(OBJ_COLOUR) $(OBJ_DOCKING) $(OBJ_DOCMAP) $(OBJ_FBROWSER) $(OBJ_FINDCHARS) $(OBJ_FUNCLIST) $(OBJ_GRID) $(OBJ_IMLIST) $(OBJ_OPENSAVE) $(OBJ_PREFERENCE) $(OBJ_PRJPANEL) $(OBJ_READDIR) $(OBJ_SHORTCUT) $(OBJ_SPLITTER) $(OBJ_STATICDLG) $(OBJ_RUNDLG) $(OBJ_STATUSBAR) $(OBJ_TABBAR) $(OBJ_TASKLIST) $(OBJ_TOOLBAR) $(OBJ_TOOLTIP) $(OBJ_TRAYICON) $(OBJ_VERTFILE) $(OBJ_WINDOWSDLG)
-OBJS_UCHARDET	= $(OBJ_UCHARDET)
-OBJS_TIXML		= $(OBJ_TIXML) $(OBJ_TIXMLA)
-OBJS_SCINT		= $(OBJ_SCINT)
-OBJS_MISC		= $(OBJ_MISC) $(OBJ_COMMON) $(OBJ_EXCEPTION) $(OBJ_PLUGINS) $(OBJ_PROCESS) $(OBJ_REGEXT)
-OBJS			= $(OBJ_NPP) $(OBJS_WIN) $(OBJS_UCHARDET) $(OBJS_TIXML) $(OBJS_SCINT) $(OBJS_MISC) $(OBJ_GCCINCLUDE)
-
-# Main resource file
-SRC_RES			= ./resources.rc
-OBJ_RES			= $(patsubst %.rc,%.res,$(SRC_RES))
-
-# XML config files
-SRC_XMLCFG		= $(addprefix $(NPP_DIR)/,config.model.xml langs.model.xml stylers.model.xml shortcuts.xml functionList.xml contextMenu.xml)
-DST_XMLCFG		= $(subst $(NPP_DIR),../bin,$(SRC_XMLCFG))
-
-DEPS = $(patsubst %.o,%.d,$(OBJS))
-
-ifeq ($(OS),Windows_NT)
-ifdef ComSpec
-SHELL = $(ComSpec)
+ifeq ($(CXX),clang++)
+  CXX := $(CROSS_COMPILE)clang++
+  SCI_CLANG := 1
+  COMPILER_SUFFIX := clang.
 else
-SHELL = cmd.exe
+  CXX := $(CROSS_COMPILE)g++
+  COMPILER_SUFFIX := gcc.
 endif
 
-CROSS_COMPILE =
-DIRSEP = \\
-RM = del
-CP = copy /Y
+CXXFLAGS := -include $(GCC_DIRECTORY)/gcc-fixes.h -std=c++20 -Wpedantic -Wall -Wextra -Wconversion
+RC := $(CROSS_COMPILE)windres
+RCFLAGS := --codepage=65001
+CPP_PATH := $(SCINTILLA_DIRECTORY)/include $(LEXILLA_DIRECTORY)/include
+CPP_DEFINE := UNICODE _UNICODE OEMRESOURCE NOMINMAX _WIN32_WINNT=_WIN32_WINNT_WIN7 NTDDI_VERSION=NTDDI_WIN7
+LD := $(CXX)
+LDFLAGS := -municode -mwindows
+LD_PATH :=
+LD_LINK := comctl32 crypt32 dbghelp ole32 sensapi shlwapi uuid uxtheme version wininet wintrust dwmapi bcrypt
+LD_LINK += $(patsubst lib%.a,%,$(SCINTILLA_TARGET)) $(patsubst lib%.a,%,$(LEXILLA_TARGET)) imm32 msimg32 ole32 oleaut32
+SUBMAKEFLAGS := -O --no-print-directory
+
+# detect a request for a debug build
+ifeq "$(filter-out 0,$(DEBUG))" ""
+BUILD_TYPE := release
+BUILD_SUFFIX :=
+CXXFLAGS += -O3
+CPP_DEFINE += NDEBUG
+LDFLAGS += -s
 else
-CROSS_COMPILE ?= i686-w64-mingw32-
-DIRSEP = /
-RM = rm -f
-CP = cp
+BUILD_TYPE := debug
+BUILD_SUFFIX := -debug
+CXXFLAGS += -Og \
+            -g \
+            -Wcast-align \
+            -Wextra-semi \
+            -Wformat=2 \
+            -Wmisleading-indentation \
+            -Wunused
+CPP_DEFINE += DEBUG _DEBUG
 endif
 
-# Parameters
-INCLUDESPECIAL	= -include./include/various.h
-#    Comment this out for ANSI build
-UNICODE         = -DUNICODE -D_UNICODE
+ifeq ($(CXX),clang++)
+  CXXFLAGS += -Wextra-semi \
+              -Wformat=2 \
+              -Wimplicit-fallthrough \
+              -Wmisleading-indentation \
+              -Wunused \
+              -Wno-c++98-compat \
+              -Wno-c++98-compat-pedantic \
+              -Wno-c99-extensions \
+              -Wno-cast-align \
+              -Wno-cast-function-type-strict \
+              -Wno-covered-switch-default \
+              -Wno-deprecated-declarations \
+              -Wno-exit-time-destructors \
+              -Wno-global-constructors \
+              -Wno-nested-anon-types \
+              -Wno-overloaded-virtual \
+              -Wno-padded \
+              -Wno-pragma-pack \
+              -Wno-reserved-id-macro \
+              -Wno-reserved-identifier \
+              -Wno-nrvo \
+              -Wno-sign-conversion \
+              -Wno-switch-default \
+              -Wno-unsafe-buffer-usage \
+              -Wno-unsafe-buffer-usage-in-libc-call \
+              -Wno-unused-command-line-argument \
+              -Wno-weak-vtables
+else
+  CXXFLAGS += -Wno-cast-function-type \
+              -Wno-overloaded-virtual \
+              -Wno-system-headers
+endif
 
-CXX				= $(CROSS_COMPILE)g++
-#CXXFLAGS		= -O2 $(INCLUDESPECIAL)
-CXXFLAGS		= $(INCLUDESPECIAL) -DTIXML_USE_STL -DTIXMLA_USE_STL $(UNICODE) -std=c++14 -fpermissive
-INCLUDES		= $(patsubst %,-I%,$(DIRS)) -I./include
-LDFLAGS			= -Wl,--subsystem,windows
-LIBS			= -lcomdlg32 -lcomctl32 -lgdi32 -lole32 -loleacc -lshell32 -lshlwapi -ldbghelp
+ifneq "$(filter-out 0,$(CLANGANALYZE))" ""
+CXXFLAGS += --analyze -Xanalyzer -analyzer-output=text
+endif
 
-RC				= $(CROSS_COMPILE)windres
+#
+# preparations
+#
 
-OUT_NPP			= NotepadPP.exe
+# detect Windows directory
+WIN_DIR := $(or $(windir),$(WINDIR))
 
-EXEC			= ../bin/$(OUT_NPP)
+# detect target CPU
+TARGET_CPU := $(firstword $(subst -, ,$(shell $(CXX) -dumpmachine)))
+ifeq "$(TARGET_CPU)" ""
+$(error TARGET_CPU detection failed)
+endif
+ifneq "$(filter-out x86_64 i686 aarch64,$(TARGET_CPU))" ""
+$(error $(TARGET_CPU) build is unsupported)
+endif
+ifeq "$(TARGET_CPU)" "i686"
+# for some reason i686 versions of MinGW-w64 GCC don't include a linking library for SensApi.dll
+# thus it is generated on the fly, but first check if the DLL is available
+ifeq "$(wildcard $(WIN_DIR)/system32/SensApi.dll)" ""
+$(error $(TARGET_CPU) build requires "%windir%/system32/SensApi.dll" to be present)
+endif
+# detect explicit definition of TARGET_CPU via command line to force a 32-bit build for MinGW-w64 with support multilib
+ifeq "$(origin TARGET_CPU)" "command line"
+export CXX += -m32
+export LD += -m32
+export RC += -Fpe-i386
+endif
+# detect explicit definition of TARGET_CPU via command line to force a 64-bit build for MinGW-w64 with support multilib
+else ifneq "$(and $(findstring x86_64,$(TARGET_CPU)),$(findstring command line,$(origin TARGET_CPU)))" ""
+export CXX += -m64
+export LD += -m64
+export RC += -Fpe-x86-64
+endif
 
-all: NotepadPP xmlcfg
+# define target and build directories and update dependent variables
+TARGET_DIRECTORY := bin.$(COMPILER_SUFFIX)$(TARGET_CPU)$(BUILD_SUFFIX)
+BUILD_DIRECTORY := $(TARGET_DIRECTORY).build
 
--include $(DEPS)
+TARGET_BINARY := $(TARGET_DIRECTORY)/$(TARGET_BINARY)
+SRC_DATA := $(addprefix $(TARGET_DIRECTORY)/,$(SRC_DATA))
+BIN_DATA := $(addprefix $(TARGET_DIRECTORY)/,$(BIN_DATA))
+INSTALLER_DATA := $(addprefix $(TARGET_DIRECTORY)/,$(INSTALLER_DATA))
+XML4CONF_DATA := $(addprefix $(TARGET_DIRECTORY)/,$(XML4CONF_DATA))
 
-# Main Notepad++ rule
-NotepadPP: $(EXEC)
+SCINTILLA_TARGET := $(BUILD_DIRECTORY)/$(SCINTILLA_TARGET)
+SCINTILLA_TARGET_PATH := ../../PowerEditor/gcc/$(SCINTILLA_TARGET)
+SCINTILLA_BUILD_DIRECTORY := $(BUILD_DIRECTORY)/_scintilla.build
+SCINTILLA_BUILD_PATH := ../../PowerEditor/gcc/$(SCINTILLA_BUILD_DIRECTORY)
 
-$(EXEC): $(OBJS) $(OBJ_RES)
-	$(CXX) $(LDFLAGS) $^ $(LIBS) -o $@
-	
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -MMD -c $< -o $@
+LEXILLA_TARGET := $(BUILD_DIRECTORY)/$(LEXILLA_TARGET)
+LEXILLA_TARGET_PATH := ../../PowerEditor/gcc/$(LEXILLA_TARGET)
+LEXILLA_BUILD_DIRECTORY := $(BUILD_DIRECTORY)/_lexilla.build
+LEXILLA_BUILD_PATH := ../../PowerEditor/gcc/$(LEXILLA_BUILD_DIRECTORY)
 
-%.res: %.rc
-	$(RC) $(INCLUDES) $(UNICODE) --input=$< --output=$@ --input-format=rc --output-format=coff
+LD_PATH += $(BUILD_DIRECTORY)
 
-xmlcfg: $(DST_XMLCFG)
+# detect a build outside of PowerEditor/gcc and update dependent variables
+SPACES_ERROR := "For outside build spaces in the project path are not supported! Please move the project files to the correct path."
+$(foreach makefile,$(MAKEFILE_LIST),$(if $(wildcard $(makefile)),,$(error $(SPACES_ERROR))))
 
-$(DST_XMLCFG): $(dir $(firstword $(DST_XMLCFG)))%.xml: $(dir $(firstword $(SRC_XMLCFG)))%.xml
-	$(CP) $(subst /,$(DIRSEP),$< $@)
+MAKEFILE_DIRECTORY := $(patsubst %/,%,$(dir $(subst \,/,$(firstword $(MAKEFILE_LIST)))))
+ifneq "$(MAKEFILE_DIRECTORY)" "."
+MAKEFILE_PARENT := $(patsubst %/,%,$(dir $(MAKEFILE_DIRECTORY)))
 
-# Cleanup
+BIN_DIRECTORY := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(BIN_DIRECTORY))
+XML4CONF_DIRECTORY := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(XML4CONF_DIRECTORY))
+GCC_DIRECTORY := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(GCC_DIRECTORY))
+GCC_EXCLUDE := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(GCC_EXCLUDE))
+SRC_DIRECTORY := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(SRC_DIRECTORY))
+SRC_EXCLUDE := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(SRC_EXCLUDE))
+INSTALLER_DIRECTORY := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(INSTALLER_DIRECTORY))
+
+SCINTILLA_DIRECTORY := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(SCINTILLA_DIRECTORY))
+SCINTILLA_TARGET_PATH := $(CURDIR)/$(SCINTILLA_TARGET)
+SCINTILLA_BUILD_PATH := $(CURDIR)/$(SCINTILLA_BUILD_DIRECTORY)
+
+LEXILLA_DIRECTORY := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(LEXILLA_DIRECTORY))
+LEXILLA_TARGET_PATH := $(CURDIR)/$(LEXILLA_TARGET)
+LEXILLA_BUILD_PATH := $(CURDIR)/$(LEXILLA_BUILD_DIRECTORY)
+
+CXXFLAGS := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(CXXFLAGS))
+CPP_PATH := $(patsubst ../%,$(MAKEFILE_PARENT)/%,$(CPP_PATH))
+endif
+
+# detect a request for a verbose output
+ifeq "$(filter-out 0,$(VERBOSE))" ""
+AT := @
+endif
+
+# detect the current operating system
+ifeq "$(WIN_DIR)" ""
+# not a Windows system
+MKDIR := mkdir -p
+CPDIR := cp -r
+RMDIR := rm -rf
+CP := cp
+RM := rm -f
+PREBUILD_EVENT_CMD := cmd //C "$(MAKEFILE_ABS_DIR)/../src/NppLibsVersionH-generator.bat"
+normalize-path = $1
+else ifneq "$(wildcard $(dir $(SHELL))ls.exe)" ""
+# a Windows system with a proper shell
+NULL :=
+SPACE := $(NULL) $(NULL)
+SHELL_DIRECTORY := $(subst |,$(SPACE),$(dir $(subst $(SPACE),|,$(SHELL))))
+MKDIR := $(SHELL_DIRECTORY)mkdir.exe -p
+CPDIR := $(SHELL_DIRECTORY)cp.exe -r
+RMDIR := $(SHELL_DIRECTORY)rm.exe -rf
+CP := $(SHELL_DIRECTORY)cp.exe
+RM := $(SHELL_DIRECTORY)rm.exe -f
+PREBUILD_EVENT_CMD := cmd //C "$(MAKEFILE_ABS_DIR)/../src/NppLibsVersionH-generator.bat"
+normalize-path = $1
+else
+# a standard Windows system
+MKDIR := mkdir
+CPDIR := xcopy /q /e /i /y
+RMDIR := rmdir /q /s
+CP := copy /y
+RM := del /q
+PREBUILD_EVENT_CMD := "$(MAKEFILE_ABS_DIR)\..\src\NppLibsVersionH-generator.bat"
+normalize-path = $(subst /,\,$1)
+endif
+
+# discover files
+list-subtree = $(foreach i,$(wildcard $1/*),$i $(call list-subtree,$i))
+
+GCC_SUBTREE := $(patsubst $(GCC_DIRECTORY)/%,%,$(filter-out $(GCC_EXCLUDE),$(call list-subtree,$(GCC_DIRECTORY))))
+SRC_SUBTREE := $(patsubst $(SRC_DIRECTORY)/%,%,$(filter-out $(SRC_EXCLUDE),$(call list-subtree,$(SRC_DIRECTORY))))
+
+CPP_PATH += $(addprefix $(GCC_DIRECTORY)/,$(sort $(patsubst %/,%,$(dir $(filter %.h %.hpp,$(GCC_SUBTREE))))))
+CPP_PATH += $(addprefix $(SRC_DIRECTORY)/,$(sort $(patsubst %/,%,$(dir $(filter %.h %.hpp,$(SRC_SUBTREE))))))
+
+vpath %.cpp $(GCC_DIRECTORY) $(SRC_DIRECTORY)
+CXX_TARGETS := $(patsubst %.cpp,$(BUILD_DIRECTORY)/%.o,$(sort $(filter %.cpp,$(GCC_SUBTREE) $(SRC_SUBTREE))))
+
+vpath %.rc $(GCC_DIRECTORY) $(SRC_DIRECTORY)
+RC_TARGETS := $(patsubst %.rc,$(BUILD_DIRECTORY)/%.res,$(sort $(filter %.rc,$(GCC_SUBTREE) $(SRC_SUBTREE))))
+
+# for 3rd-party cpp files use only basic warning flags, for headers supress warnings
+THIRD_DIRS := $(SRC_DIRECTORY)/json \
+              $(SRC_DIRECTORY)/pugixml \
+              $(SRC_DIRECTORY)/uchardet \
+              $(SRC_DIRECTORY)/MISC/crc16 \
+              $(SRC_DIRECTORY)/MISC/md5 \
+              $(SRC_DIRECTORY)/MISC/sha1 \
+              $(SRC_DIRECTORY)/MISC/sha2 \
+              $(SRC_DIRECTORY)/MISC/sha512 \
+              $(SRC_DIRECTORY)/MISC/hmac \
+              $(SCINTILLA_DIRECTORY)/include \
+              $(LEXILLA_DIRECTORY)/include
+
+THIRD_ISYSTEM := $(addprefix -isystem ,$(THIRD_DIRS))
+CXXFLAGS += $(THIRD_ISYSTEM)
+
+thirdparty_flags = $(if $(filter $(foreach d,$(THIRD_DIRS),$(d)/%),$(1)), -w -Wpedantic -Wall -Wextra,)
+
+#
+# actions
+#
+
+.PHONY: .force all binary data clean sciclean lexclean fullclean
+.force:
+
+SUBMAKEFLAGS += $(if $(NUMBER_OF_PROCESSORS),-j$(NUMBER_OF_PROCESSORS),)
+
+all: pre-build-event $(SCINTILLA_TARGET) $(LEXILLA_TARGET)
+	$(AT)$(MAKE) -f $(firstword $(MAKEFILE_LIST)) $(SUBMAKEFLAGS) binary
+
+pre-build-event:
+	@echo Executing pre-build events...
+	$(AT)$(PREBUILD_EVENT_CMD)
+
+$(BUILD_DIRECTORY):
+	@echo + creating BUILD_DIRECTORY $@
+	$(AT)$(MKDIR) $(call normalize-path,$(sort $@ $(patsubst %/,%,$(dir $(CXX_TARGETS) $(RC_TARGETS)))))
+
+$(SCINTILLA_BUILD_DIRECTORY):
+	@echo + creating SCINTILLA_BUILD_DIRECTORY $@
+	$(AT)$(MKDIR) $(call normalize-path,$(SCINTILLA_BUILD_DIRECTORY))
+
+$(LEXILLA_BUILD_DIRECTORY):
+	@echo + creating LEXILLA_BUILD_DIRECTORY $@
+	$(AT)$(MKDIR) $(call normalize-path,$(LEXILLA_BUILD_DIRECTORY))
+
+ifeq "$(MAKELEVEL)" "0"
+$(SCINTILLA_TARGET): .force
+$(LEXILLA_TARGET): .force
+endif
+
+$(SCINTILLA_TARGET): | $(BUILD_DIRECTORY) $(SCINTILLA_BUILD_DIRECTORY)
+	$(AT)$(MAKE) $(SUBMAKEFLAGS) -C $(SCINTILLA_DIRECTORY)/win32 -f makefile -f ../../boostregex/nppSpecifics_mingw.mak DIR_O=$(SCINTILLA_BUILD_PATH) LIBSCI=$(SCINTILLA_TARGET_PATH) $(SCINTILLA_TARGET_PATH) CLANG=$(SCI_CLANG)
+
+$(LEXILLA_TARGET): | $(BUILD_DIRECTORY) $(LEXILLA_BUILD_DIRECTORY)
+	$(AT)$(MAKE) $(SUBMAKEFLAGS) -C $(LEXILLA_DIRECTORY)/src DIR_O=$(LEXILLA_BUILD_PATH) LIBLEXILLA=$(LEXILLA_TARGET_PATH) $(LEXILLA_TARGET_PATH) CLANG=$(SCI_CLANG)
+
+binary: $(TARGET_BINARY) data
+	@echo +++ $(TARGET_CPU) $(BUILD_TYPE) : $(CURDIR)/$(TARGET_BINARY) +++
+
+$(CXX_TARGETS): $(BUILD_DIRECTORY)/%.o: %.cpp | $(BUILD_DIRECTORY)
+	@echo + compiling $<
+	$(AT)$(CXX) $(CXXFLAGS) $(call thirdparty_flags,$<) $(addprefix -I,$(CPP_PATH)) $(addprefix -D,$(CPP_DEFINE)) -MMD -c -o $@ $<
+
+$(RC_TARGETS): $(BUILD_DIRECTORY)/%.res: %.rc | $(BUILD_DIRECTORY)
+	@echo + compiling $<
+	$(AT)$(RC) $(RCFLAGS) $(addprefix -I,$(CPP_PATH)) $(addprefix -D,$(CPP_DEFINE)) -O coff -o $@ -i $<
+
+ifeq "$(TARGET_CPU)" "i686"
+$(TARGET_BINARY): $(BUILD_DIRECTORY)/libsensapi.a
+$(BUILD_DIRECTORY)/libsensapi.a: | $(BUILD_DIRECTORY)
+	@echo + generating $@
+	$(AT)gendef $(call normalize-path,$(firstword $(wildcard $(WIN_DIR)/syswow64/SensApi.dll $(WIN_DIR)/system32/SensApi.dll)))
+	$(AT)dlltool -mi386 -f--32 -d SensApi.def -k -l $(call normalize-path,$@)
+	$(AT)$(RM) SensApi.def
+endif
+
+$(TARGET_DIRECTORY):
+	@echo + creating TARGET_DIRECTORY $@
+	$(AT)$(MKDIR) $(call normalize-path,$@)
+
+$(TARGET_BINARY): $(CXX_TARGETS) $(RC_TARGETS) $(SCINTILLA_TARGET) $(LEXILLA_TARGET) | $(TARGET_DIRECTORY)
+	@echo + linking $@
+	$(AT)$(LD) $(LDFLAGS) $(filter-out %.a,$^) $(addprefix -L,$(LD_PATH)) $(addprefix -l,$(LD_LINK)) -static -o $@
+
+data: $(patsubst %/,%,$(SRC_DATA) $(BIN_DATA) $(XML4CONF_DATA) $(INSTALLER_DATA))
+
+$(patsubst %/,%,$(filter %/,$(SRC_DATA))): $(TARGET_DIRECTORY)/%: $(SRC_DIRECTORY)/% | $(TARGET_DIRECTORY)
+	@echo + copying $@
+	$(AT)$(CPDIR) $(call normalize-path,$< $@)
+$(filter-out %/,$(SRC_DATA)): $(TARGET_DIRECTORY)/%: $(SRC_DIRECTORY)/% | $(TARGET_DIRECTORY)
+	@echo + copying $@
+	$(AT)$(CP) $(call normalize-path,$< $@)
+
+$(XML4CONF_DATA): $(TARGET_DIRECTORY)/%: $(XML4CONF_DIRECTORY)/% | $(TARGET_DIRECTORY)
+	@echo + copying $@
+	$(AT)$(CP) $(call normalize-path,$< $@)
+
+$(patsubst %/,%,$(filter %/,$(BIN_DATA))): $(TARGET_DIRECTORY)/%: $(BIN_DIRECTORY)/% | $(TARGET_DIRECTORY)
+	@echo + copying $@
+	$(AT)$(CPDIR) $(call normalize-path,$< $@)
+$(filter-out %/,$(BIN_DATA)): $(TARGET_DIRECTORY)/%: $(BIN_DIRECTORY)/% | $(TARGET_DIRECTORY)
+	@echo + copying $@
+	$(AT)$(CP) $(call normalize-path,$< $@)
+
+$(TARGET_DIRECTORY)/autoCompletion: $(INSTALLER_DIRECTORY)/APIs
+$(TARGET_DIRECTORY)/functionList: $(INSTALLER_DIRECTORY)/functionList
+$(TARGET_DIRECTORY)/localization: $(INSTALLER_DIRECTORY)/nativeLang
+$(TARGET_DIRECTORY)/themes: $(INSTALLER_DIRECTORY)/themes
+$(patsubst %/,%,$(filter %/,$(INSTALLER_DATA))): | $(TARGET_DIRECTORY)
+	@echo + copying $@
+	$(AT)$(CPDIR) $(call normalize-path,$< $@)
+$(filter-out %/,$(INSTALLER_DATA)): | $(TARGET_DIRECTORY)
+	@echo + copying $@
+	$(AT)$(CP) $(call normalize-path,$< $@)
+
 clean:
-	-@$(RM) $(subst /,$(DIRSEP),$(OBJS) $(OBJ_RES))
-	-@$(RM) $(subst /,$(DIRSEP),$(DST_XMLCFG))
-	-@$(RM) $(subst /,$(DIRSEP),$(DEPS))
+	-$(AT)$(RMDIR) $(call normalize-path,$(BUILD_DIRECTORY))
 
-.PHONY: all clean NotepadPP
+sciclean:
+	-$(AT)$(RMDIR) $(call normalize-path,$(SCINTILLA_BUILD_DIRECTORY))
+
+lexclean:
+	-$(AT)$(RMDIR) $(call normalize-path,$(LEXILLA_BUILD_DIRECTORY))
+
+fullclean: clean
+	-$(AT)$(RMDIR) $(call normalize-path,$(TARGET_DIRECTORY))
+
+-include $(CXX_TARGETS:%.o=%.d)

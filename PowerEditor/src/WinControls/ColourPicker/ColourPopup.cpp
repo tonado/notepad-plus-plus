@@ -1,63 +1,75 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-#include <iostream>
-#include <stdexcept>
 #include "ColourPopup.h"
 
-DWORD colourItems[] = {
-	RGB(  0,   0,   0),	RGB( 64,   0,   0),	RGB(128,   0,   0),	RGB(128,  64,  64),	RGB(255,   0,   0),	RGB(255, 128, 128),
-	RGB(255, 255, 128),	RGB(255, 255,   0),	RGB(255, 128,  64),	RGB(255, 128,   0),	RGB(128,  64,   0),	RGB(128, 128,   0),
-	RGB(128, 128,  64),	RGB(  0,  64,   0),	RGB(  0, 128,   0),	RGB(  0, 255,   0),	RGB(128, 255,   0),	RGB(128, 255, 128),
-	RGB(  0, 255, 128),	RGB(  0, 255,  64),	RGB(  0, 128, 128),	RGB(  0, 128,  64),	RGB(  0,  64,  64),	RGB(128, 128, 128),
-	RGB( 64, 128, 128),	RGB(  0,   0, 128),	RGB(  0,   0, 255),	RGB(  0,  64, 128),	RGB(  0, 255, 255), RGB(128, 255, 255),
-	RGB(  0, 128, 255),	RGB(  0, 128, 192),	RGB(128, 128, 255),	RGB(  0,   0, 160),	RGB(  0,   0,  64),	RGB(192, 192, 192),
-	RGB( 64,   0,  64),	RGB( 64,   0,  64),	RGB(128,   0, 128),	RGB(128,   0,  64),	RGB(128, 128, 192),	RGB(255, 128, 192),
-	RGB(255, 128, 255),	RGB(255,   0, 255), RGB(255,   0, 128),	RGB(128,   0, 255), RGB( 64,   0, 128),	RGB(255, 255, 255),
-};
+#include <windows.h>
 
-void ColourPopup::create(int dialogID) 
+#include <commdlg.h>
+
+#include <array>
+#include <stdexcept>
+
+#include "ColourPopupResource.h"
+#include "NppDarkMode.h"
+#include "Parameters.h"
+#include "StaticDialog.h"
+#include "Window.h"
+#include "dpiManagerV2.h"
+#include "localization.h"
+
+static constexpr std::array<COLORREF, 48> colorItems{ {
+	RGB(  0,   0,   0), RGB( 64,   0,   0), RGB(128,   0,   0), RGB(128,  64,  64), RGB(255,   0,   0), RGB(255, 128, 128),
+	RGB(255, 255, 128), RGB(255, 255,   0), RGB(255, 128,  64), RGB(255, 128,   0), RGB(128,  64,   0), RGB(128, 128,   0),
+	RGB(128, 128,  64), RGB(  0,  64,   0), RGB(  0, 128,   0), RGB(  0, 255,   0), RGB(128, 255,   0), RGB(128, 255, 128),
+	RGB(  0, 255, 128), RGB(  0, 255,  64), RGB(  0, 128, 128), RGB(  0, 128,  64), RGB(  0,  64,  64), RGB(128, 128, 128),
+	RGB( 64, 128, 128), RGB(  0,   0, 128), RGB(  0,   0, 255), RGB(  0,  64, 128), RGB(  0, 255, 255), RGB(128, 255, 255),
+	RGB(  0, 128, 255), RGB(  0, 128, 192), RGB(128, 128, 255), RGB(  0,   0, 160), RGB(  0,   0,  64), RGB(192, 192, 192),
+	RGB( 64,   0,  64), RGB( 64,   0,  64), RGB(128,   0, 128), RGB(128,   0,  64), RGB(128, 128, 192), RGB(255, 128, 192),
+	RGB(255, 128, 255), RGB(255,   0, 255), RGB(255,   0, 128), RGB(128,   0, 255), RGB( 64,   0, 128), RGB(255, 255, 255),
+} };
+
+void ColourPopup::createColorPopup()
 {
-	_hSelf = ::CreateDialogParam(_hInst, MAKEINTRESOURCE(dialogID), _hParent,  dlgProc, reinterpret_cast<LPARAM>(this));
-	
+	_hSelf = StaticDialog::myCreateDialogIndirectParam(IDD_COLOUR_POPUP, false, 0, L"", ColourPopup::dlgClrPopupProc);
+
 	if (!_hSelf)
 	{
-		throw std::runtime_error("ColourPopup::create : CreateDialogParam() function return null");
+		throw std::runtime_error("ColourPopup::createColorPopup : StaticDialog::myCreateDialogIndirectParam() function returns nullptr");
 	}
-	Window::getClientRect(_rc);
-	display();
 }
 
-INT_PTR CALLBACK ColourPopup::dlgProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
+void ColourPopup::doDialog(POINT p)
 {
-	switch (message) 
+	if (!isCreated())
 	{
-		case WM_MEASUREITEM:
+		const auto dpiContext = DPIManagerV2::setThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+		createColorPopup();
+		DPIManagerV2::setThreadDpiAwarenessContext(dpiContext);
+
+		::SetWindowPos(_hSelf, HWND_TOP, p.x, p.y, 0, 0, SWP_NOSIZE | SWP_SHOWWINDOW);
+	}
+}
+
+intptr_t CALLBACK ColourPopup::dlgClrPopupProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+		case WM_MEASUREITEM: // sent before WM_INITDIALOG
 		{
 			RECT rc;
 			LPMEASUREITEMSTRUCT lpmis = reinterpret_cast<LPMEASUREITEMSTRUCT>(lParam);
@@ -86,24 +98,50 @@ INT_PTR CALLBACK ColourPopup::dlgProc(HWND hwnd, UINT message, WPARAM wParam, LP
 	}
 }
 
-INT_PTR CALLBACK ColourPopup::run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam)
+intptr_t CALLBACK ColourPopup::run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
 
 	switch (message)
 	{
 		case WM_INITDIALOG:
 		{
-			int nColor;
-			for (nColor = 0 ; nColor < int(sizeof(colourItems)/sizeof(DWORD)) ; ++nColor)
+			NppDarkMode::autoSubclassAndThemeChildControls(_hSelf);
+
+			for (const auto& color : colorItems)
 			{
-				::SendDlgItemMessage(_hSelf, IDC_COLOUR_LIST, LB_ADDSTRING, nColor, reinterpret_cast<LPARAM>(""));
-				::SendDlgItemMessage(_hSelf, IDC_COLOUR_LIST, LB_SETITEMDATA, nColor, static_cast<LPARAM>(colourItems[nColor]));
+				const auto i = ::SendDlgItemMessage(_hSelf, IDC_COLOUR_LIST, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(""));
+				if (i != LB_ERR)
+					::SendDlgItemMessage(_hSelf, IDC_COLOUR_LIST, LB_SETITEMDATA, i, static_cast<LPARAM>(color));
 			}
+
+			const NativeLangSpeaker* pNativeSpeaker = NppParameters::getInstance().getNativeLangSpeaker();
+			pNativeSpeaker->changeDlgLang(_hSelf, "ColorPopup");
 			return TRUE;
 		}
 		
 		case WM_CTLCOLORLISTBOX:
-			return (LRESULT) CreateSolidBrush(GetSysColor(COLOR_3DFACE));
+		{
+			if (NppDarkMode::isEnabled())
+			{
+				return NppDarkMode::onCtlColorDlg(reinterpret_cast<HDC>(wParam));
+			}
+			return reinterpret_cast<LRESULT>(::GetStockObject(NULL_BRUSH));
+		}
+
+		case WM_CTLCOLORDLG:
+		case WM_CTLCOLORSTATIC:
+		{
+			return NppDarkMode::onCtlColorDlg(reinterpret_cast<HDC>(wParam));
+		}
+
+		case WM_PRINTCLIENT:
+		{
+			if (NppDarkMode::isEnabled())
+			{
+				return TRUE;
+			}
+			break;
+		}
 
 		case WM_DRAWITEM:
 		{
@@ -111,7 +149,7 @@ INT_PTR CALLBACK ColourPopup::run_dlgProc(UINT message, WPARAM wParam, LPARAM lP
 			COLORREF	cr;
 			HBRUSH		hbrush;
 	
-			DRAWITEMSTRUCT *pdis = (DRAWITEMSTRUCT *)lParam;
+			auto* pdis = reinterpret_cast<DRAWITEMSTRUCT*>(lParam);
 			hdc = pdis->hDC;
 			RECT rc = pdis->rcItem;
 	
@@ -119,7 +157,7 @@ INT_PTR CALLBACK ColourPopup::run_dlgProc(UINT message, WPARAM wParam, LPARAM lP
 			SetBkMode(hdc,TRANSPARENT);
 	
 			// NULL object
-			if (pdis->itemID == UINT(-1)) return 0; 
+			if (pdis->itemID == static_cast<UINT>(-1)) return 0;
 
 			switch (pdis->itemAction)
 			{
@@ -128,15 +166,18 @@ INT_PTR CALLBACK ColourPopup::run_dlgProc(UINT message, WPARAM wParam, LPARAM lP
 					{
 						case IDC_COLOUR_LIST:
 							rc = pdis->rcItem;
-							cr = (COLORREF) pdis->itemData;
+							cr = static_cast<COLORREF>(pdis->itemData);
 							InflateRect(&rc, -3, -3);
-							hbrush = CreateSolidBrush((COLORREF)cr);
+							hbrush = ::CreateSolidBrush(cr);
 							FillRect(hdc, &rc, hbrush);
 							DeleteObject(hbrush);
-							FrameRect(hdc, &rc, (HBRUSH) GetStockObject(GRAY_BRUSH));
+							hbrush = CreateSolidBrush(NppDarkMode::isEnabled() ? NppDarkMode::getEdgeColor() : RGB(0, 0, 0));
+							FrameRect(hdc, &rc, hbrush);
+							DeleteObject(hbrush);
 							break;
 					}
 					// *** FALL THROUGH ***
+					[[fallthrough]];
 				case ODA_SELECT:
 					rc = pdis->rcItem;
 					if (pdis->itemState & ODS_SELECTED)
@@ -144,16 +185,16 @@ INT_PTR CALLBACK ColourPopup::run_dlgProc(UINT message, WPARAM wParam, LPARAM lP
 						rc.bottom --;
 						rc.right --;
 						// Draw the lighted side.
-						HPEN hpen = CreatePen(PS_SOLID, 1, GetSysColor(COLOR_BTNSHADOW));
-						HPEN holdPen = (HPEN)SelectObject(hdc, hpen);
+						HPEN hpen = CreatePen(PS_SOLID, 1, NppDarkMode::isEnabled() ? NppDarkMode::getEdgeColor() : GetSysColor(COLOR_BTNSHADOW));
+						auto holdPen = static_cast<HPEN>(::SelectObject(hdc, hpen));
 						MoveToEx(hdc, rc.left, rc.bottom, NULL);
 						LineTo(hdc, rc.left, rc.top);
 						LineTo(hdc, rc.right, rc.top);
 						SelectObject(hdc, holdPen);
 						DeleteObject(hpen);
 						// Draw the darkened side.
-						hpen = CreatePen(PS_SOLID, 1, GetSysColor(COLOR_BTNHIGHLIGHT));
-						holdPen = (HPEN)SelectObject(hdc, hpen);
+						hpen = CreatePen(PS_SOLID, 1, NppDarkMode::isEnabled() ? NppDarkMode::getEdgeColor() : GetSysColor(COLOR_BTNHIGHLIGHT));
+						holdPen = static_cast<HPEN>(::SelectObject(hdc, hpen));
 						LineTo(hdc, rc.right, rc.bottom);
 						LineTo(hdc, rc.left, rc.bottom);
 						SelectObject(hdc, holdPen);
@@ -161,7 +202,7 @@ INT_PTR CALLBACK ColourPopup::run_dlgProc(UINT message, WPARAM wParam, LPARAM lP
 					}
 					else 
 					{
-						hbrush = CreateSolidBrush(GetSysColor(COLOR_3DFACE));
+						hbrush = CreateSolidBrush(NppDarkMode::isEnabled() ? NppDarkMode::getDlgBackgroundColor() : GetSysColor(COLOR_3DFACE));
 						FrameRect(hdc, &rc, hbrush);
 						DeleteObject(hbrush);
 					}
@@ -179,67 +220,114 @@ INT_PTR CALLBACK ColourPopup::run_dlgProc(UINT message, WPARAM wParam, LPARAM lP
 
 		case WM_COMMAND:
 			switch (LOWORD(wParam))
-            {
-                case IDOK :
-			    {
-					//isColourChooserLaunched = true;
-					CHOOSECOLOR cc;                 // common dialog box structure 
-					static COLORREF acrCustClr[16] = {
-						RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),\
-						RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),\
-						RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),\
-						RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),RGB(0xFF,0xFF,0xFF),\
-					}; // array of custom colors 
+			{
+				case IDOK:
+				{
+					// The 16 custom color slots are persisted across restarts (issue #4782):
+					// ChooseColorW reads/writes this array in place, and it is saved to
+					// config.xml on exit.
+					auto& customColors = NppParameters::getInstance().getNppGUI()._colorPickerCustomColors;
 
-					// Initialize CHOOSECOLOR 
-					::ZeroMemory(&cc, sizeof(cc));
-					cc.lStructSize = sizeof(cc);
+					CHOOSECOLOR cc{};
+					cc.lStructSize = sizeof(CHOOSECOLOR);
 					cc.hwndOwner = _hParent;
 
-					cc.lpCustColors = (LPDWORD) acrCustClr;
+					cc.lpCustColors = customColors.data();
 					cc.rgbResult = _colour;
-					cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+					cc.lpfnHook = chooseColorDlgProc;
+					cc.Flags = CC_FULLOPEN | CC_RGBINIT | CC_ENABLEHOOK;
 
-					display(false);
-					 
-					if (ChooseColor(&cc)==TRUE) 
+					Window::display(false);
+
+					const auto dpiContext = DPIManagerV2::setThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED);
+					NppDarkMode::darkChooseColorW(&cc);
+					DPIManagerV2::setThreadDpiAwarenessContext(dpiContext);
+
+					::SendMessage(_hParent, WM_PICKUP_COLOR, cc.rgbResult, 0);
+
+					return TRUE;
+				}
+
+				case IDC_COLOUR_LIST:
+				{
+					if (HIWORD(wParam) == LBN_SELCHANGE)
 					{
-						::SendMessage(_hParent, WM_PICKUP_COLOR, cc.rgbResult, 0);
+						const auto i = ::SendMessage(reinterpret_cast<HWND>(lParam), LB_GETCURSEL, 0, 0);
+						_colour = static_cast<COLORREF>(::SendMessage(reinterpret_cast<HWND>(lParam), LB_GETITEMDATA, i, 0));
+						Window::display(false);
+						::SendMessage(_hParent, WM_PICKUP_COLOR, _colour, 0);
+						return TRUE;
 					}
-					else
-					{
-						::SendMessage(_hParent, WM_PICKUP_CANCEL, 0, 0);
-					}
+					return FALSE;
+				}
 
-				    return TRUE;
-			    }
+				default:
+					return FALSE;
+			}
 
-                case IDC_COLOUR_LIST :
-                {
-			        if (HIWORD(wParam) == LBN_SELCHANGE)
-		            {
-                        auto i = ::SendMessage(reinterpret_cast<HWND>(lParam), LB_GETCURSEL, 0L, 0L);
-						_colour = static_cast<COLORREF>(::SendMessage(reinterpret_cast<HWND>(lParam), LB_GETITEMDATA, i, 0L));
-
-                        ::SendMessage(_hParent, WM_PICKUP_COLOR, _colour, 0);
-					    return TRUE;
-		            }
-                }
-			    
-                default :
-                    return FALSE;
-            }
-		
-		case WM_ACTIVATE :
-        {
-			if (LOWORD(wParam) == WA_INACTIVE)
-				::SendMessage(_hParent, WM_PICKUP_CANCEL, 0, 0);
-			return TRUE;
+		case WM_ACTIVATE:
+		{
+			if (LOWORD(wParam) == WA_INACTIVE && ::IsWindowVisible(_hSelf))
+			{
+				Window::display(false);
+				destroy();
+				return TRUE;
+			}
+			break;
 		}
-		
 	}
 	return FALSE;
 }
 
+UINT_PTR CALLBACK ColourPopup::chooseColorDlgProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM)
+{
+	switch (message)
+	{
+		case WM_INITDIALOG:
+		{
+			if (NppDarkMode::isExperimentalSupported())
+			{
+				NppDarkMode::setDarkTitleBar(hwnd);
+			}
+			NppDarkMode::autoSubclassAndThemeChildControls(hwnd);
+			break;
+		}
 
+		case WM_CTLCOLOREDIT:
+		{
+			return NppDarkMode::onCtlColorCtrl(reinterpret_cast<HDC>(wParam));
+		}
 
+		case WM_CTLCOLORLISTBOX:
+		{
+			[[fallthrough]];
+		}
+		case WM_CTLCOLORDLG:
+		case WM_CTLCOLORSTATIC:
+		{
+			return NppDarkMode::onCtlColorDlg(reinterpret_cast<HDC>(wParam));
+		}
+
+		case WM_PRINTCLIENT:
+		{
+			if (NppDarkMode::isEnabled())
+			{
+				return TRUE;
+			}
+			break;
+		}
+
+		case WM_ERASEBKGND:
+		{
+			if (NppDarkMode::isEnabled())
+			{
+				RECT rc = {};
+				::GetClientRect(hwnd, &rc);
+				::FillRect(reinterpret_cast<HDC>(wParam), &rc, NppDarkMode::getDlgBackgroundBrush());
+				return TRUE;
+			}
+			break;
+		}
+	}
+	return FALSE;
+}

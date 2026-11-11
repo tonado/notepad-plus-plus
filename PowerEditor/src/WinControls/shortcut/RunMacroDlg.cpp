@@ -1,145 +1,222 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // created by Daniel Volk mordorpost@volkarts.com
 
 
 #include "RunMacroDlg.h"
-#include "ScintillaEditView.h"
+
+#include <windows.h>
+
+#include <algorithm>
+#include <vector>
+
+#include "Common.h"
+#include "NppDarkMode.h"
+#include "Parameters.h"
+#include "shortcut.h"
 #include "Notepad_plus_msgs.h"
+#include "resource.h"
+#include "RunMacroDlg_rc.h"
 
 void RunMacroDlg::initMacroList()
 {
 	if (!isCreated()) return;
 
-	NppParameters *pNppParam = NppParameters::getInstance();
-	std::vector<MacroShortcut> & macroList = pNppParam->getMacroList();
+	NppParameters& nppParam = NppParameters::getInstance();
+	const std::vector<MacroShortcut>& macroList = nppParam.getMacroList();
 
 	::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_RESETCONTENT, 0, 0);
 
-	if (::SendMessage(_hParent, WM_GETCURRENTMACROSTATUS, 0, 0) == MACRO_RECORDING_HAS_STOPPED)
-		::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(TEXT("Current recorded macro")));
+	if (static_cast<MacroStatus>(::SendMessage(_hParent, NPPM_GETCURRENTMACROSTATUS, 0, 0)) == MacroStatus::RecordingStopped)
+		::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Current recorded macro"));
 
 	for (size_t i = 0, len = macroList.size(); i < len ; ++i)
-		::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(macroList[i].getName()));
+		::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(string2wstring(macroList[i].getName(), CP_UTF8).c_str()));
 
 	::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_SETCURSEL, 0, 0);
 	_macroIndex = 0;
 }
 
-INT_PTR CALLBACK RunMacroDlg::run_dlgProc(UINT message, WPARAM wParam, LPARAM)
+intptr_t CALLBACK RunMacroDlg::run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam)
 {	
-	switch (message) 
+	switch (message)
 	{
 		case WM_INITDIALOG :
 		{
+			NppDarkMode::autoSubclassAndThemeChildControls(_hSelf);
+
 			initMacroList();
 			::SetDlgItemInt(_hSelf, IDC_M_RUN_TIMES, _times, FALSE);
-			switch (_mode)
-			{
-				case RM_RUN_MULTI:
-					check(IDC_M_RUN_MULTI);
-					break;
-				case RM_RUN_EOF:
-					check(IDC_M_RUN_EOF);
-					break;
-			}
+			setChecked(IDC_M_RUN_MULTI);
+
 			::SendDlgItemMessage(_hSelf, IDC_M_RUN_TIMES, EM_LIMITTEXT, 4, 0);
-			goToCenter();
+			goToCenter(SWP_SHOWWINDOW | SWP_NOSIZE);
 
 			return TRUE;
 		}
-		
-		case WM_COMMAND : 
+
+		case WM_CTLCOLOREDIT:
 		{
-			if (HIWORD(wParam) == EN_CHANGE)
+			return NppDarkMode::onCtlColorCtrl(reinterpret_cast<HDC>(wParam));
+		}
+
+		case WM_CTLCOLORLISTBOX:
+		{
+			return NppDarkMode::onCtlColorListbox(wParam, lParam);
+		}
+
+		case WM_CTLCOLORDLG:
+		{
+			return NppDarkMode::onCtlColorDlg(reinterpret_cast<HDC>(wParam));
+		}
+
+		case WM_CTLCOLORSTATIC:
+		{
+			auto hdcStatic = reinterpret_cast<HDC>(wParam);
+			const auto dlgCtrlID = ::GetDlgCtrlID(reinterpret_cast<HWND>(lParam));
+
+			const bool isStaticText = (dlgCtrlID == IDC_TIMES_STATIC);
+			//set the static text colors to show enable/disable instead of ::EnableWindow which causes blurry text
+			if (isStaticText)
 			{
-				switch (LOWORD(wParam))
-				{	
-					case IDC_M_RUN_TIMES:
-						check(IDC_M_RUN_MULTI);
-						return TRUE;
-					
-					default:
-						return FALSE;
-				}
+				const bool isTextEnabled = isCheckedOrNot(IDC_M_RUN_MULTI);
+				return NppDarkMode::onCtlColorDlgStaticText(hdcStatic, isTextEnabled);
 			}
-			
-			switch (wParam)
+			return NppDarkMode::onCtlColorDlg(hdcStatic);
+		}
+
+		case WM_PRINTCLIENT:
+		{
+			if (NppDarkMode::isEnabled())
 			{
-				case IDCANCEL :
+				return TRUE;
+			}
+			break;
+		}
+
+		case NPPM_INTERNAL_REFRESHDARKMODE:
+		{
+			NppDarkMode::autoThemeChildControls(_hSelf);
+			return TRUE;
+		}
+
+		case WM_CHANGEUISTATE:
+		{
+			if (NppDarkMode::isEnabled())
+			{
+				redrawDlgItem(IDC_MACRO2RUN_STATIC);
+			}
+
+			return FALSE;
+		}
+
+		case WM_DPICHANGED:
+		{
+			_dpiManager.setDpiWP(wParam);
+			setPositionDpi(lParam);
+
+			return TRUE;
+		}
+
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam))
+			{
+				case IDC_M_RUN_MULTI:
+				case IDC_M_RUN_EOF:
+				{
+					const bool isRunMulti = (wParam == IDC_M_RUN_MULTI);
+					if (isRunMulti)
+					{
+						::EnableWindow(::GetDlgItem(_hSelf, IDC_M_RUN_TIMES), TRUE);
+						_times = ::GetDlgItemInt(_hSelf, IDC_M_RUN_TIMES, NULL, FALSE);
+					}
+					else
+					{
+						::EnableWindow(::GetDlgItem(_hSelf, IDC_M_RUN_TIMES), FALSE);
+					}
+					redrawDlgItem(IDC_TIMES_STATIC);
+
+					return TRUE;
+				}
+
+				case IDCANCEL:
 					::ShowWindow(_hSelf, SW_HIDE);
 					return TRUE;
 
-				case IDOK :
-					if ( isCheckedOrNot(IDC_M_RUN_MULTI) )
-					{
-						_mode = RM_RUN_MULTI;
-						_times = ::GetDlgItemInt(_hSelf, IDC_M_RUN_TIMES, NULL, FALSE);
-					}
-					else if ( isCheckedOrNot(IDC_M_RUN_EOF) )
-					{
-						_mode = RM_RUN_EOF;
-					}
-
-					if (::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_GETCOUNT, 0, 0))
+				case IDOK:
+				{
+					if (::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_GETCOUNT, 0, 0) > 0)
 						::SendMessage(_hParent, WM_MACRODLGRUNMACRO, 0, 0);
 
 					return TRUE;
+				}
 
-				default:
-					if ((HIWORD(wParam) == CBN_SELCHANGE) && (LOWORD(wParam) == IDC_MACRO_COMBO))
+				case IDC_MACRO_COMBO:
+				{
+					if (HIWORD(wParam) == CBN_SELCHANGE)
 					{
-						_macroIndex = static_cast<int32_t>(::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_GETCURSEL, 0, 0));
+						_macroIndex = static_cast<int>(::SendDlgItemMessage(_hSelf, IDC_MACRO_COMBO, CB_GETCURSEL, 0, 0));
 						return TRUE;
 					}
+					return FALSE;
+				}
+
+				case IDC_M_RUN_TIMES:
+				{
+					switch (HIWORD(wParam))
+					{
+						case EN_KILLFOCUS:
+						{
+							const int times = ::GetDlgItemInt(_hSelf, IDC_M_RUN_TIMES, nullptr, FALSE);
+							if (times < 1)
+							{
+								::SetDlgItemInt(_hSelf, IDC_M_RUN_TIMES, 1, FALSE);
+								return TRUE;
+							}
+
+							return FALSE;
+						}
+
+						case EN_CHANGE:
+						{
+							_times = std::max<int>(::GetDlgItemInt(_hSelf, IDC_M_RUN_TIMES, nullptr, FALSE), 1);
+							return TRUE;
+						}
+
+						default:
+						{
+							return FALSE;
+						}
+					}
+				}
+
+				default:
+				{
+					return FALSE;
+				}
 			}
 		}
 	}
 	return FALSE;
 }
 
-void RunMacroDlg::check(int id)
-{
-	// IDC_M_RUN_MULTI
-	if ( id == IDC_M_RUN_MULTI )
-		::SendDlgItemMessage(_hSelf, IDC_M_RUN_MULTI, BM_SETCHECK, BST_CHECKED, 0);
-	else
-		::SendDlgItemMessage(_hSelf, IDC_M_RUN_MULTI, BM_SETCHECK, BST_UNCHECKED, 0);
-
-	// IDC_M_RUN_EOF
-	if ( id == IDC_M_RUN_EOF )
-		::SendDlgItemMessage(_hSelf, IDC_M_RUN_EOF, BM_SETCHECK, BST_CHECKED, 0);
-	else
-		::SendDlgItemMessage(_hSelf, IDC_M_RUN_EOF, BM_SETCHECK, BST_UNCHECKED, 0);
-}
-
 int RunMacroDlg::getMacro2Exec() const 
 {
-	bool isCurMacroPresent = ::SendMessage(_hParent, WM_GETCURRENTMACROSTATUS, 0, 0) == MACRO_RECORDING_HAS_STOPPED;
+	bool isCurMacroPresent = static_cast<MacroStatus>(::SendMessage(_hParent, NPPM_GETCURRENTMACROSTATUS, 0, 0)) == MacroStatus::RecordingStopped;
 	return isCurMacroPresent?(_macroIndex - 1):_macroIndex;
 }

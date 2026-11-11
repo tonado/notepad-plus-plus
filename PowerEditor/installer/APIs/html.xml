@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="Windows-1252" ?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <NotepadPlus>
 	<AutoComplete>
 		<KeyWord name="!DOCTYPE html" />
@@ -174,8 +174,6 @@
 		<KeyWord name="expanded" />
 		<KeyWord name="extra-condensed" />
 		<KeyWord name="extra-expanded" />
-		<KeyWord name="far-left" />
-		<KeyWord name="far-right" />
 		<KeyWord name="fast" />
 		<KeyWord name="faster" />
 		<KeyWord name="fieldset" />
@@ -312,6 +310,7 @@
 		<KeyWord name="min" />
 		<KeyWord name="min-height" />
 		<KeyWord name="min-width" />
+		<KeyWord name="minlength" />
 		<KeyWord name="mix" />
 		<KeyWord name="move" />
 		<KeyWord name="ms" />
@@ -539,6 +538,7 @@
 		<KeyWord name="src" />
 		<KeyWord name="srcdoc" />
 		<KeyWord name="srclang" />
+		<KeyWord name="srcset" />
 		<KeyWord name="start" />
 		<KeyWord name="static" />
 		<KeyWord name="status-bar" />

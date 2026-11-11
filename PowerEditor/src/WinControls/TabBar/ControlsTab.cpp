@@ -1,32 +1,26 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #include "ControlsTab.h"
+
+#include <windows.h>
+
+#include "TabBar.h"
+#include "Window.h"
 
 void ControlsTab::createTabs(WindowVector & winVector)
 {
@@ -41,39 +35,37 @@ void ControlsTab::createTabs(WindowVector & winVector)
 
 void ControlsTab::activateWindowAt(int index)
 {
-    if (index == _current)  return;
+	if (index == _current) return;
 	(*_pWinVector)[_current]._dlg->display(false);
 	(*_pWinVector)[index]._dlg->display(true);
 	_current = index;
 }
 
-void ControlsTab::reSizeTo(RECT & rc)
+void ControlsTab::reSizeToWH(RECT& rc)
 {
-	TabBar::reSizeTo(rc);
-	rc.left += marge;
-	rc.top += marge;
-	
-	//-- We do those dirty things 
-	//-- because it's a "vertical" tab control
-    if (_isVertical)
-    {
-	    rc.right -= 40;
-	    rc.bottom -= 20;
-	    if (getRowCount() == 2)
-	    {
-		    rc.right -= 20;
-	    }
-    }
-	//-- end of dirty things
-	rc.bottom -= 55;
-	rc.right -= 20;
+	Window::reSizeToWH(rc);
 
-	(*_pWinVector)[_current]._dlg->reSizeTo(rc);
+	RECT rcTab{};
+	TabCtrl_GetItemRect(_hSelf, 0, &rcTab);
+	const LONG tabHeight = (rcTab.bottom - rcTab.top) + _dpiManager.getSystemMetricsForDpi(SM_CYEDGE);
+
+	::GetClientRect(_hSelf, &rc);
+	::MapWindowPoints(_hSelf, _hParent, reinterpret_cast<LPPOINT>(&rc), 2);
+
+	rc.top += tabHeight;
+
+	const LONG padding = _dpiManager.scale(3);
+	::InflateRect(&rc, -padding, -padding);
+
+	for (const auto& dlgInfo : *_pWinVector)
+	{
+		dlgInfo._dlg->Window::reSizeToWH(rc);
+	}
+
 	(*_pWinVector)[_current]._dlg->redraw();
-
 }
 
-bool ControlsTab::renameTab(const TCHAR *internalName, const TCHAR *newName)
+bool ControlsTab::renameTab(const wchar_t *internalName, const wchar_t *newName)
 {
 	bool foundIt = false;
 	size_t i = 0;
@@ -85,6 +77,7 @@ bool ControlsTab::renameTab(const TCHAR *internalName, const TCHAR *newName)
 			break;
 		}
 	}
+
 	if (!foundIt)
 		return false;
 
@@ -92,10 +85,10 @@ bool ControlsTab::renameTab(const TCHAR *internalName, const TCHAR *newName)
 	return true;
 }
 
-void ControlsTab::renameTab(size_t index, const TCHAR *newName)
+void ControlsTab::renameTab(size_t index, const wchar_t *newName)
 {
-	TCITEM tie;
+	TCITEM tie{};
 	tie.mask = TCIF_TEXT;
-	tie.pszText = (TCHAR *)newName;
+	tie.pszText = const_cast<wchar_t*>(newName);
 	TabCtrl_SetItem(_hSelf, index, &tie);
 }

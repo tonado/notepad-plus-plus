@@ -1,35 +1,26 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 
 #include "lastRecentFileList.h"
 #include "menuCmdID.h"
 #include "localization.h"
+
+using namespace std;
 
 void LastRecentFileList::initMenu(HMENU hMenu, int idBase, int posBase, Accelerator *pAccelerator, bool doSubMenu)
 {
@@ -49,7 +40,7 @@ void LastRecentFileList::initMenu(HMENU hMenu, int idBase, int posBase, Accelera
 	_pAccelerator = pAccelerator;
 	_nativeLangEncoding = NPP_CP_WIN_1252;
 
-	for (int i = 0 ; i < sizeof(_idFreeArray) ; ++i)
+	for (size_t i = 0 ; i < sizeof(_idFreeArray) ; ++i)
 		_idFreeArray[i] = true;
 }
 
@@ -61,7 +52,7 @@ void LastRecentFileList::switchMode()
 	::RemoveMenu(_hMenu, IDM_OPEN_ALL_RECENT_FILE, MF_BYCOMMAND);
 	::RemoveMenu(_hMenu, IDM_CLEAN_RECENT_FILE_LIST, MF_BYCOMMAND);
 
-	for(int i = 0; i < _size; ++i)
+	for (int i = 0; i < _size; ++i)
 	{
 		::RemoveMenu(_hMenu, _lrfl.at(i)._id, MF_BYCOMMAND);
 	}
@@ -90,30 +81,30 @@ void LastRecentFileList::switchMode()
 		_hParentMenu = NULL;
 	}
 	_hasSeparators = false;
-};
+}
 
 void LastRecentFileList::updateMenu()
 {
-	NppParameters *pNppParam = NppParameters::getInstance();
+	NppParameters& nppParam = NppParameters::getInstance();
 
 	if (!_hasSeparators && _size > 0) 
 	{	
 		//add separators
-		NativeLangSpeaker *pNativeLangSpeaker = pNppParam->getNativeLangSpeaker();
+		NativeLangSpeaker *pNativeLangSpeaker = nppParam.getNativeLangSpeaker();
 
-		generic_string recentFileList = pNativeLangSpeaker->getSpecialMenuEntryName("RecentFiles");
-		generic_string openRecentClosedFile = pNativeLangSpeaker->getNativeLangMenuString(IDM_FILE_RESTORELASTCLOSEDFILE);
-		generic_string openAllFiles = pNativeLangSpeaker->getNativeLangMenuString(IDM_OPEN_ALL_RECENT_FILE);
-		generic_string cleanFileList = pNativeLangSpeaker->getNativeLangMenuString(IDM_CLEAN_RECENT_FILE_LIST);
+		wstring recentFileList = pNativeLangSpeaker->getSubMenuEntryName("file-recentFiles");
+		wstring openRecentClosedFile = pNativeLangSpeaker->getNativeLangMenuString(IDM_FILE_RESTORELASTCLOSEDFILE);
+		wstring openAllFiles = pNativeLangSpeaker->getNativeLangMenuString(IDM_OPEN_ALL_RECENT_FILE);
+		wstring cleanFileList = pNativeLangSpeaker->getNativeLangMenuString(IDM_CLEAN_RECENT_FILE_LIST);
 
-		if (recentFileList == TEXT(""))
-			recentFileList = TEXT("&Recent Files");
-		if (openRecentClosedFile == TEXT(""))
-			openRecentClosedFile = TEXT("Restore Recent Closed File");
-		if (openAllFiles == TEXT(""))
-			openAllFiles = TEXT("Open All Recent Files");
-		if (cleanFileList == TEXT(""))
-			cleanFileList = TEXT("Empty Recent Files List");
+		if (recentFileList == L"")
+			recentFileList = L"&Recent Files";
+		if (openRecentClosedFile == L"")
+			openRecentClosedFile = L"Restore Recent Closed File";
+		if (openAllFiles == L"")
+			openAllFiles = L"Open All Recent Files";
+		if (cleanFileList == L"")
+			cleanFileList = L"Empty Recent Files List";
 
 		if (!isSubMenuMode())
 			::InsertMenu(_hMenu, _posBase + 0, MF_BYPOSITION, static_cast<UINT_PTR>(-1), 0);
@@ -153,20 +144,20 @@ void LastRecentFileList::updateMenu()
 	_pAccelerator->updateFullMenu();
 
 	//Remove all menu items
-	for(int i = 0; i < _size; ++i) 
+	for (int i = 0; i < _size; ++i) 
 	{
 		::RemoveMenu(_hMenu, _lrfl.at(i)._id, MF_BYCOMMAND);
 	}
 	//Then readd them, so everything stays in sync
-	for(int j = 0; j < _size; ++j)
+	for (int j = 0; j < _size; ++j)
 	{
-		generic_string strBuffer(BuildMenuFileName(pNppParam->getRecentFileCustomLength(), j, _lrfl.at(j)._name));
+		wstring strBuffer(BuildMenuFileName(nppParam.getRecentFileCustomLength(), j, _lrfl.at(j)._name));
 		::InsertMenu(_hMenu, _posBase + j, MF_BYPOSITION, _lrfl.at(j)._id, strBuffer.c_str());
 	}
 	
 }
 
-void LastRecentFileList::add(const TCHAR *fn) 
+void LastRecentFileList::add(const wchar_t *fn) 
 {
 	if (_userMax == 0 || _locked)
 		return;
@@ -174,27 +165,32 @@ void LastRecentFileList::add(const TCHAR *fn)
 	RecentItem itemToAdd(fn);
 
 	int index = find(fn);
-	if (index != -1) {	//already in list, bump upwards
+	if (index != -1)
+	{
+		//already in list, bump upwards
 		remove(index);
 	}
 
-	if (_size == _userMax) {
+	if (_size == _userMax)
+	{
 		itemToAdd._id = _lrfl.back()._id;
 		_lrfl.pop_back();	//remove oldest
-	} else {
+	}
+	else
+	{
 		itemToAdd._id = popFirstAvailableID();
 		++_size;
 	}
 	_lrfl.push_front(itemToAdd);
 	updateMenu();
-};
+}
 
-void LastRecentFileList::remove(const TCHAR *fn) 
+void LastRecentFileList::remove(const wchar_t *fn) 
 { 
 	int index = find(fn);
 	if (index != -1)
 		remove(index);
-};
+}
 
 void LastRecentFileList::remove(size_t index) 
 {
@@ -208,7 +204,7 @@ void LastRecentFileList::remove(size_t index)
 		--_size;
 		updateMenu();
 	}
-};
+}
 
 
 void LastRecentFileList::clear() 
@@ -216,7 +212,7 @@ void LastRecentFileList::clear()
 	if (_size == 0)
 		return;
 
-	for(int i = (_size-1); i >= 0; i--) 
+	for (int i = (_size-1); i >= 0; i--) 
 	{
 		::RemoveMenu(_hMenu, _lrfl.at(i)._id, MF_BYCOMMAND);
 		setAvailable(_lrfl.at(i)._id);
@@ -227,20 +223,22 @@ void LastRecentFileList::clear()
 }
 
 
-generic_string & LastRecentFileList::getItem(int id) 
+wstring & LastRecentFileList::getItem(int id) 
 {
 	int i = 0;
-	for(; i < _size; ++i)
+	for (; i < _size; ++i)
 	{
 		if (_lrfl.at(i)._id == id)
 			break;
 	}
+
 	if (i == _size)
 		i = 0;
-	return _lrfl.at(i)._name;	//if not found, return first
-};
 
-generic_string & LastRecentFileList::getIndex(int index)
+	return _lrfl.at(i)._name;	//if not found, return first
+}
+
+wstring & LastRecentFileList::getIndex(int index)
 {
 	return _lrfl.at(index)._name;	//if not found, return first
 }
@@ -252,7 +250,7 @@ void LastRecentFileList::setUserMaxNbLRF(int size)
 	if (_size > _userMax) 
 	{	//start popping items
 		int toPop = _size-_userMax;
-		while(toPop > 0) 
+		while (toPop > 0) 
 		{
 			::RemoveMenu(_hMenu, _lrfl.back()._id, MF_BYCOMMAND);
 			setAvailable(_lrfl.back()._id);
@@ -260,6 +258,7 @@ void LastRecentFileList::setUserMaxNbLRF(int size)
 			toPop--;
 			_size--;
 		}
+
 		updateMenu();
 		_size = _userMax;
 	}
@@ -269,22 +268,22 @@ void LastRecentFileList::setUserMaxNbLRF(int size)
 
 void LastRecentFileList::saveLRFL()
 {
-	NppParameters *pNppParams = NppParameters::getInstance();
-	if (pNppParams->writeRecentFileHistorySettings(_userMax))
+	NppParameters& nppParams = NppParameters::getInstance();
+	if (nppParams.writeRecentFileHistorySettings(_userMax))
 	{
-		for(int i = _size - 1; i >= 0; i--)	//reverse order: so loading goes in correct order
+		for (int i = _size - 1; i >= 0; i--)	//reverse order: so loading goes in correct order
 		{
-			pNppParams->writeHistory(_lrfl.at(i)._name.c_str());
+			nppParams.writeHistory(_lrfl.at(i)._name.c_str());
 		}
 	}
 }
 
 
-int LastRecentFileList::find(const TCHAR *fn)
+int LastRecentFileList::find(const wchar_t *fn)
 {
-	for(int i = 0; i < _size; ++i)
+	for (int i = 0; i < _size; ++i)
 	{
-		if (!lstrcmpi(_lrfl.at(i)._name.c_str(), fn))
+		if (wcscmp(_lrfl.at(i)._name.c_str(), fn) == 0)
 		{
 			return i;
 		}

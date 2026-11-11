@@ -1,78 +1,51 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid
-// misunderstandings, we consider an application to constitute a
-// "derivative work" for the purpose of this license if it does any of the
-// following:
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #pragma once
-#include "ColourPopupResource.h"
+
+#include <windows.h>
+
+#include "StaticDialog.h"
 #include "resource.h"
-#include "Window.h"
 
-#define WM_PICKUP_COLOR  (COLOURPOPUP_USER + 1)
-#define WM_PICKUP_CANCEL (COLOURPOPUP_USER + 2)
+#define WM_PICKUP_COLOR (COLOURPOPUP_USER + 1)
 
-
-class ColourPopup : public Window
+class ColourPopup : public StaticDialog
 {
-public :
+public:
 	ColourPopup() = default;
 	explicit ColourPopup(COLORREF defaultColor) : _colour(defaultColor) {}
-	virtual ~ColourPopup() {}
+	~ColourPopup() override {}
 
-	bool isCreated() const
-	{
-		return (_hSelf != NULL);
+	void createColorPopup();
+	void doDialog(POINT p);
+
+	void destroy() override {
+		if (_hSelf != nullptr)
+		{
+			::DestroyWindow(_hSelf);
+			_hSelf = nullptr;
+		}
 	}
 
-	void create(int dialogID);
+private:
+	COLORREF _colour = RGB(0xFF, 0xFF, 0xFF);
 
-	void doDialog(POINT p)
-	{
-		if (!isCreated())
-			create(IDD_COLOUR_POPUP);
-		::SetWindowPos(_hSelf, HWND_TOP, p.x, p.y, _rc.right - _rc.left, _rc.bottom - _rc.top, SWP_SHOWWINDOW);
-	}
-
-	virtual void destroy()
-	{
-		::DestroyWindow(_hSelf);
-	}
-
-	void setColour(COLORREF c)
-	{
-		_colour = c;
-	}
-
-	COLORREF getSelColour(){return _colour;};
-
-private :
-	RECT _rc;
-	COLORREF _colour;
-	//bool isColourChooserLaunched = false;
-
-	static INT_PTR CALLBACK dlgProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
-	INT_PTR CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam);
+	static intptr_t CALLBACK dlgClrPopupProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+	intptr_t CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	static UINT_PTR CALLBACK chooseColorDlgProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 };

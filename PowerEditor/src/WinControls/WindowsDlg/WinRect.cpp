@@ -28,9 +28,11 @@ WINRECT::WINRECT(WORD f, int id, LONG p)
 WINRECT* WINRECT::Parent()
 {
 	WINRECT* pEntry = NULL;
-	for (pEntry=this; pEntry->Prev(); pEntry=pEntry->Prev()) {
-		; // go backwards to the end
+	for (pEntry=this; pEntry->Prev(); pEntry=pEntry->Prev())
+	{
+		// go backwards to the end
 	}
+
 	// the entry before the first child is the group
 	WINRECT *parent = pEntry-1;
 	assert(parent->IsGroup());
@@ -42,7 +44,8 @@ WINRECT* WINRECT::Parent()
 //
 BOOL WINRECT::GetMargins(int& w, int& h)
 {
-	if (IsGroup()) {
+	if (IsGroup())
+	{
 		w=(short)LOWORD(param);
 		h=(short)HIWORD(param);
 		return TRUE;
@@ -55,20 +58,22 @@ BOOL WINRECT::GetMargins(int& w, int& h)
 // Initialize map: set up all the next/prev pointers. This converts the
 // linear array to a more convenient linked list. Called from END_WINDOW_MAP.
 //
-WINRECT* WINRECT::InitMap(WINRECT* pWinMap, WINRECT* parent)
+WINRECT* WINRECT::InitMap(WINRECT* pWinMap, const WINRECT* parent)
 {
 	assert(pWinMap);
 
 	WINRECT* pwrc = pWinMap;  // current table entry
 	WINRECT* prev = NULL;	  // previous entry starts out none
 
-	while (!pwrc->IsEndGroup()) {
+	while (!pwrc->IsEndGroup())
+	{
 		pwrc->prev=prev;
 		pwrc->next=NULL;
 		if (prev)
 			prev->next = pwrc;
 		prev = pwrc;
-		if (pwrc->IsGroup()) {
+		if (pwrc->IsGroup())
+		{
 			pwrc = InitMap(pwrc+1,pwrc); // recurse! Returns end-of-grp
 			assert(pwrc->IsEndGroup());
 		}

@@ -1,92 +1,121 @@
 // This file is part of Notepad++ project
-// Copyright (C)2003 Don HO <don.h@free.fr>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later version.
-//
-// Note that the GPL places important restrictions on "derived works", yet
-// it does not provide a detailed definition of that term.  To avoid      
-// misunderstandings, we consider an application to constitute a          
-// "derivative work" for the purpose of this license if it does any of the
-// following:                                                             
-// 1. Integrates source code from Notepad++.
-// 2. Integrates/includes/aggregates Notepad++ into a proprietary executable
-//    installer, such as those produced by InstallShield.
-// 3. Links to a library or executes a program that does any of the above.
+// Copyright (C)2021 Don HO <don.h@free.fr>
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #pragma once
 
-#include "Window.h"
-#include "Common.h"
+#include <windows.h>
 
-#include <Commctrl.h>
+#include <commctrl.h>
+
+#include <string>
+#include <vector>
+
+#include "NppDarkMode.h"
+#include "Window.h"
 
 struct columnInfo {
 	size_t _width;
-	generic_string _label;
+	std::wstring _label;
 
-	columnInfo(const generic_string & label, size_t width) : _width(width), _label(label) {};
+	columnInfo(const std::wstring& label, size_t width) : _width(width), _label(label) {}
 };
 
-class ListView : public Window
+class ListViewBase : public Window
 {
 public:
-	ListView() : Window() {};
-	virtual ~ListView() {};
+	ListViewBase() = default;
+	~ListViewBase() override = default;
 
+	virtual void init(HINSTANCE hInst, HWND hParent, UINT_PTR listViewID,
+		DWORD style = LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
+		DWORD exStyle = LVS_EX_FULLROWSELECT | LVS_EX_BORDERSELECT | LVS_EX_DOUBLEBUFFER);
+
+	void destroy() override;
+
+	void setDarkTheme() {
+		NppDarkMode::setDarkListView(_hSelf);
+		NppDarkMode::setDarkTooltips(_hSelf, NppDarkMode::ToolTipsType::listview);
+	}
+
+	static void subclassParentNotifyListViewCustomDraw(HWND hParent, UINT_PTR listViewID);
+
+protected:
+	using Window::init;
+
+private:
+	static LRESULT listViewNotifyCustomDraw(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) noexcept;
+	static LRESULT CALLBACK ListViewParentNotifyCustomDrawSubclass(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) noexcept;
+};
+
+class ListView : public ListViewBase
+{
+public:
+	ListView() = default;
+	~ListView() override = default;
+
+	void init(HINSTANCE hInst, HWND parent, UINT_PTR listViewID,
+		DWORD style = LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
+		DWORD exStyle = LVS_EX_FULLROWSELECT | LVS_EX_BORDERSELECT | LVS_EX_DOUBLEBUFFER) override;
+
+	enum SortDirection {
+		sortEncrease = 0,
+		sortDecrease = 1
+	};
 	// addColumn() should be called before init()
 	void addColumn(const columnInfo & column2Add) {
 		_columnInfos.push_back(column2Add);
-	};
+	}
 
-	// setStyleOption() should be called before init()
-	void setStyleOption(int32_t extraStyle) {
-		_extraStyle = extraStyle;
-	};
+	void setColumnText(size_t i, std::wstring txt2Set) {
+		LVCOLUMN lvColumn{};
+		lvColumn.mask = LVCF_TEXT;
+		lvColumn.pszText = txt2Set.data();
+		ListView_SetColumn(_hSelf, i, &lvColumn);
+	}
 
-	void addLine(const std::vector<generic_string> & values2Add, LPARAM lParam = 0, int pos2insert = -1);
+	size_t findAlphabeticalOrderPos(const std::wstring& string2Cmp, SortDirection sortDir);
+
+	void addLine(std::vector<std::wstring>& values2Add, LPARAM lParam = 0, int pos2insert = -1);
 	
 	size_t nbItem() const {
 		return ListView_GetItemCount(_hSelf);
-	};
+	}
 
 	long getSelectedIndex() const {
 		return ListView_GetSelectionMark(_hSelf);
-	};
+	}
 
 	void setSelection(int itemIndex) const {
 		ListView_SetItemState(_hSelf, itemIndex, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 		ListView_EnsureVisible(_hSelf, itemIndex, false);
 		ListView_SetSelectionMark(_hSelf, itemIndex);
-	};
+	}
 
 	LPARAM getLParamFromIndex(int itemIndex) const;
 
-	virtual void init(HINSTANCE hInst, HWND hwnd);
-	virtual void destroy();
+	bool removeFromIndex(size_t i)	{
+		if (i >= nbItem())
+			return false;
 
+		return (ListView_DeleteItem(_hSelf, i) == TRUE);
+	}
+
+	std::vector<size_t> getCheckedIndexes() const;
 
 protected:
-	WNDPROC _defaultProc = nullptr;
-	int32_t _extraStyle = 0;
 	std::vector<columnInfo> _columnInfos;
-
-	LRESULT runProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
-
-	static LRESULT CALLBACK staticProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) {
-		return (((ListView *)(::GetWindowLongPtr(hwnd, GWLP_USERDATA)))->runProc(hwnd, Message, wParam, lParam));
-	};
 };
-

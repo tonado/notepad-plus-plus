@@ -26,6 +26,8 @@
 //	http://qualapps.blogspot.com/2010/05/understanding-readdirectorychangesw.html
 //	See ReadMe.txt for overview information.
 
+#include <string>
+
 class CReadDirectoryChanges;
 
 namespace ReadDirectoryChangesPrivate
@@ -75,12 +77,12 @@ protected:
 			LPOVERLAPPED lpOverlapped);					// I/O information buffer
 
 	// Parameters from the caller for ReadDirectoryChangesW().
-	DWORD		m_dwFilterFlags;
-	BOOL		m_bIncludeChildren;
-	CStringW	m_wstrDirectory;
+	std::wstring m_wstrDirectory;
+	BOOL m_bIncludeChildren = FALSE;
+	DWORD m_dwFilterFlags = 0;
 
 	// Result of calling CreateFile().
-	HANDLE		m_hDirectory;
+	HANDLE		m_hDirectory = nullptr;
 
 	// Required parameter for ReadDirectoryChangesW().
 	OVERLAPPED	m_Overlapped;
@@ -104,10 +106,7 @@ protected:
 class CReadChangesServer
 {
 public:
-	explicit CReadChangesServer(CReadDirectoryChanges* pParent)
-	{
-		m_bTerminate=false; m_nOutstandingRequests=0;m_pBase=pParent;
-	}
+	explicit CReadChangesServer(CReadDirectoryChanges* pParent): m_pBase(pParent) {}
 
 	static unsigned int WINAPI ThreadStartProc(LPVOID arg)
 	{
@@ -117,22 +116,22 @@ public:
 	}
 
 	// Called by QueueUserAPC to start orderly shutdown.
-	static void CALLBACK TerminateProc(__in  ULONG_PTR arg)
+	static void CALLBACK TerminateProc(  ULONG_PTR arg)
 	{
 		CReadChangesServer* pServer = reinterpret_cast<CReadChangesServer*>(arg);
 		pServer->RequestTermination();
 	}
 
 	// Called by QueueUserAPC to add another directory.
-	static void CALLBACK AddDirectoryProc(__in  ULONG_PTR arg)
+	static void CALLBACK AddDirectoryProc(  ULONG_PTR arg)
 	{
 		CReadChangesRequest* pRequest = reinterpret_cast<CReadChangesRequest*>(arg);
 		pRequest->m_pServer->AddDirectory(pRequest);
 	}
 
-	CReadDirectoryChanges* m_pBase;
+	CReadDirectoryChanges* m_pBase = nullptr;
 
-	volatile DWORD m_nOutstandingRequests;
+	volatile DWORD m_nOutstandingRequests = 0;
 
 protected:
 
@@ -171,7 +170,7 @@ protected:
 
 	vector<CReadChangesRequest*> m_pBlocks;
 
-	bool m_bTerminate;
+	bool m_bTerminate = false;
 };
 
 }
